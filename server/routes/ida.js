@@ -112,7 +112,7 @@ Provide a JSON response with:
 }`;
 
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-70b-versatile',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [
         { role: 'system', content: 'You are an expert IDA DevOps agent. Always respond with valid JSON only, no markdown.' },
         { role: 'user', content: prompt },

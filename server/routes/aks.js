@@ -112,7 +112,7 @@ Provide a concise remediation plan with:
 Keep it actionable, under 600 words.`;
 
     const stream = await groq.chat.completions.create({
-      model: 'llama-3.1-70b-versatile',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [{ role: 'user', content: prompt }],
       stream: true,
       max_tokens: 800,
