@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: humana-ai-ops-backend
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO_OWNER
+        sync: false
+      - key: GITHUB_REPO_NAME
+        value: humana-aks-demo
+      - key: AZURE_CLIENT_ID
+        sync: false
+      - key: AZURE_CLIENT_SECRET
+        sync: false
+      - key: AZURE_TENANT_ID
+        sync: false
+      - key: AZURE_SUBSCRIPTION_ID
+        sync: false
+      - key: SNOW_INSTANCE
+        sync: false
+      - key: SNOW_USERNAME
+        sync: false
+      - key: SNOW_PASSWORD
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+
+  - type: static
+    name: humana-ai-ops-frontend
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: humana-ai-ops-backend
+          property: host
