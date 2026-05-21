@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import MetricCounter from '../components/MetricCounter'
 import {
   GitBranch, Server, Shield, Activity, ChevronRight, Zap, Clock,
-  TrendingDown, Users, ArrowRight, ExternalLink, Building2, Cpu,
+  ArrowRight, ExternalLink, Building2, Cpu,
 } from 'lucide-react'
 
 // ─── Tower taxonomy ───────────────────────────────────────────────────────────
@@ -148,67 +148,18 @@ function countForGroup(groupId, tower) {
   return USE_CASES.filter(uc => leafIds.some(lid => uc.subcategories.includes(lid))).length
 }
 
-// ─── Typewriter ───────────────────────────────────────────────────────────────
+// ─── Stat chips ───────────────────────────────────────────────────────────────
 
-const TYPEWRITER_TEXTS = [
-  'AI-Powered Infrastructure Operations',
-  'Intelligent Automation for Humana',
-  '45 Use Cases. 2 Towers. Zero Manual Toil.',
+const TOTAL_FTE = Math.round(
+  USE_CASES.reduce((s, uc) => s + (uc.beforeHrs - uc.afterHrs), 0) / 160
+)
+
+const STAT_CHIPS = [
+  { label: '45 Use Cases',              color: 'bg-humana-green/10 text-humana-green border-humana-green/25' },
+  { label: '2 Towers in Scope',         color: 'bg-humana-teal/10  text-humana-teal  border-humana-teal/25'  },
+  { label: `~${TOTAL_FTE} FTEs saved/yr`, color: 'bg-amber-50 text-amber-700 border-amber-200'              },
+  { label: '67% avg MTTR reduction',    color: 'bg-red-50 text-red-600 border-red-200'                       },
 ]
-
-function TypewriterHeadline() {
-  const [textIndex, setTextIndex] = useState(0)
-  const [displayed, setDisplayed] = useState('')
-  const [charIdx, setCharIdx] = useState(0)
-  const [deleting, setDeleting] = useState(false)
-
-  useEffect(() => {
-    const target = TYPEWRITER_TEXTS[textIndex]
-    const timer = setTimeout(() => {
-      if (!deleting) {
-        if (charIdx < target.length) { setDisplayed(target.slice(0, charIdx + 1)); setCharIdx(c => c + 1) }
-        else { setTimeout(() => setDeleting(true), 2800) }
-      } else {
-        if (charIdx > 0) { setDisplayed(target.slice(0, charIdx - 1)); setCharIdx(c => c - 1) }
-        else { setDeleting(false); setTextIndex(i => (i + 1) % TYPEWRITER_TEXTS.length) }
-      }
-    }, deleting ? 30 : 55)
-    return () => clearTimeout(timer)
-  }, [charIdx, deleting, textIndex])
-
-  return (
-    <h1 className="text-3xl md:text-4xl font-bold text-humana-navy min-h-[2.5rem]">
-      {displayed}
-      <span className="border-r-4 border-humana-green ml-0.5 animate-pulse">&nbsp;</span>
-    </h1>
-  )
-}
-
-// ─── Stat bar ─────────────────────────────────────────────────────────────────
-
-function StatBar() {
-  const totalFTE = USE_CASES.reduce((sum, uc) => sum + (uc.beforeHrs - uc.afterHrs), 0)
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-      {[
-        { label: 'Total Use Cases',       value: 45,                           suffix: '',         icon: Zap,          color: 'text-humana-green' },
-        { label: 'Towers Covered',        value: 2,                            suffix: '',         icon: Activity,     color: 'text-humana-teal'  },
-        { label: 'Estimated FTE Savings', value: Math.round(totalFTE / 160),   suffix: ' FTEs/yr', icon: Users,        color: 'text-amber-500'    },
-        { label: 'Avg MTTR Reduction',    value: 67,                           suffix: '%',        icon: TrendingDown, color: 'text-red-500'      },
-      ].map(stat => (
-        <div key={stat.label} className="bg-white/80 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm border border-white">
-          <stat.icon size={22} className={stat.color} />
-          <div>
-            <div className={`text-2xl font-bold ${stat.color}`}>
-              <MetricCounter value={stat.value} suffix={stat.suffix} duration={1400} />
-            </div>
-            <div className="text-xs text-gray-500 font-medium">{stat.label}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ─── Tower panels ─────────────────────────────────────────────────────────────
 
@@ -391,59 +342,30 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-humana-light">
 
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-humana-navy via-humana-navy to-[#003d7a] px-6 py-10 text-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 text-humana-green text-sm font-semibold mb-3">
-            <span className="live-dot" />
-            TCS × Humana AI Operations Hub
+      {/* ── Page header ── */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-humana-navy">Humana AI Operations Hub</h1>
+            <p className="text-sm text-gray-500 mt-0.5">AI-powered automation across infrastructure towers</p>
           </div>
-          <TypewriterHeadline />
-          <p className="text-white/70 mt-3 max-w-2xl text-sm leading-relaxed">
-            A fully interactive live demonstration platform built for Humana's infrastructure leadership.
-            Real AI. Real APIs. Real outcomes.
-          </p>
-          <StatBar />
+          <div className="flex flex-wrap gap-2">
+            {STAT_CHIPS.map(chip => (
+              <span key={chip.label} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${chip.color}`}>
+                {chip.label}
+              </span>
+            ))}
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* Live Demo Cards */}
-      <section className="px-6 py-8 max-w-6xl mx-auto">
-        <h2 className="text-lg font-bold text-humana-navy mb-4 flex items-center gap-2">
-          <Zap size={18} className="text-humana-green" />
-          Live Interactive Demos
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { path: '/demo/aks-vulnerability-agent', title: 'AKS Vulnerability & Compliance', desc: 'AI CVE remediation for Kubernetes with HIPAA compliance scoring',            color: 'from-red-600 to-red-800',         badge: 'UC #36', time: '15 min', icon: Shield    },
-            { path: '/demo/ida-workflow-agent',      title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why and automated remediation',      color: 'from-humana-navy to-blue-900',    badge: 'UC #9',  time: '20 min', icon: GitBranch },
-            { path: '/demo/batch-health-analyzer',   title: 'Batch Health Analyzer',          desc: 'Unified NOC for Control-M, Mainframe, Toad, Informatica, and Nabu',         color: 'from-emerald-700 to-emerald-900', badge: 'UC #25', time: '20 min', icon: Server    },
-            { path: '/demo/rca-cmdb-agent',          title: 'RCA Agent + CMDB Enrichment',    desc: 'Problem ticket RCA with multi-source correlation and CMDB health dashboard', color: 'from-purple-700 to-purple-900',   badge: 'UC #41', time: '20 min', icon: Activity  },
-          ].map(demo => (
-            <Link key={demo.path} to={demo.path} className="group">
-              <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col`}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
-                  <span className="flex items-center gap-1 text-xs text-white/70"><Clock size={10} />{demo.time}</span>
-                </div>
-                <demo.icon size={28} className="text-white/80 mb-3" />
-                <h3 className="font-bold text-base leading-tight mb-2">{demo.title}</h3>
-                <p className="text-white/70 text-xs leading-relaxed flex-1">{demo.desc}</p>
-                <div className="mt-4 flex items-center gap-1 text-white/90 text-xs font-semibold group-hover:gap-2 transition-all">
-                  Launch Demo <ChevronRight size={14} />
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Towers in Scope */}
-      <section className="px-6 pb-6 max-w-6xl mx-auto">
+      {/* ── Towers in Scope ── */}
+      <section className="px-6 pt-6 pb-2 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-humana-navy flex items-center gap-2">
-            <Building2 size={18} className="text-humana-teal" />
+          <h2 className="text-base font-bold text-humana-navy flex items-center gap-2">
+            <Building2 size={16} className="text-humana-teal" />
             Towers in Scope
+            <span className="text-xs font-normal text-gray-400">— click a sub-category to filter use cases</span>
           </h2>
           {activeLeaf && (
             <button
@@ -454,21 +376,20 @@ export default function Home() {
             </button>
           )}
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-          <ITOpsTowerPanel   tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <ITOpsTowerPanel    tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
           <PlatformTowerPanel tower={platformTower} activeLeaf={activeLeaf} onSelect={handleSelect} />
         </div>
       </section>
 
-      {/* Use Case Catalog */}
-      <section ref={catalogRef} className="px-6 pb-10 max-w-6xl mx-auto">
+      {/* ── Use Case Catalog ── */}
+      <section ref={catalogRef} className="px-6 pt-6 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-humana-navy flex items-center gap-2">
-            <Activity size={18} className="text-humana-teal" />
+          <h2 className="text-base font-bold text-humana-navy flex items-center gap-2">
+            <Activity size={16} className="text-humana-teal" />
             {activeLabel
               ? <><span>{activeLabel}</span><span className="text-sm text-gray-400 font-normal ml-1">— {filtered.length} use cases</span></>
-              : <>Full Use Case Catalog <span className="text-sm text-gray-400 font-normal">({filtered.length})</span></>
+              : <>Use Case Catalog <span className="text-sm text-gray-400 font-normal">({filtered.length})</span></>
             }
           </h2>
           <Link to="/catalog" className="text-sm text-humana-green font-semibold flex items-center gap-1 hover:underline">
@@ -490,6 +411,42 @@ export default function Home() {
             ))}
           </motion.div>
         </AnimatePresence>
+      </section>
+
+      {/* ── Live Interactive Demos ── */}
+      <section className="bg-humana-navy mt-6 px-6 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-2 mb-5">
+            <Zap size={16} className="text-humana-green" />
+            <h2 className="text-base font-bold text-white">Live Interactive Demos</h2>
+            <span className="text-white/40 text-xs">— 4 fully wired demos with real AI · click to launch</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { path: '/demo/aks-vulnerability-agent', title: 'AKS Vulnerability & Compliance', desc: 'AI CVE remediation for Kubernetes with HIPAA compliance scoring',            color: 'from-red-600 to-red-800',         badge: 'UC #36', time: '15 min', icon: Shield    },
+              { path: '/demo/ida-workflow-agent',      title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why and automated remediation',      color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  time: '20 min', icon: GitBranch },
+              { path: '/demo/batch-health-analyzer',   title: 'Batch Health Analyzer',          desc: 'Unified NOC for Control-M, Mainframe, Toad, Informatica, and Nabu',         color: 'from-emerald-700 to-emerald-900', badge: 'UC #25', time: '20 min', icon: Server    },
+              { path: '/demo/rca-cmdb-agent',          title: 'RCA Agent + CMDB Enrichment',    desc: 'Problem ticket RCA with multi-source correlation and CMDB health dashboard', color: 'from-purple-700 to-purple-900',   badge: 'UC #41', time: '20 min', icon: Activity  },
+            ].map(demo => (
+              <Link key={demo.path} to={demo.path} className="group">
+                <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
+                    <span className="flex items-center gap-1 text-xs text-white/60">
+                      <Clock size={10} />{demo.time}
+                    </span>
+                  </div>
+                  <demo.icon size={26} className="text-white/70 mb-3" />
+                  <h3 className="font-bold text-sm leading-snug mb-2">{demo.title}</h3>
+                  <p className="text-white/60 text-xs leading-relaxed flex-1">{demo.desc}</p>
+                  <div className="mt-4 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
+                    Launch Demo <ChevronRight size={13} />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
       </section>
 
     </div>
