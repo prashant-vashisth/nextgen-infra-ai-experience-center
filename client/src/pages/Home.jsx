@@ -150,10 +150,10 @@ function countForGroup(groupId, tower) {
 // ─── Stat chips ───────────────────────────────────────────────────────────────
 
 const STAT_CHIPS = [
-  { label: '45 Use Cases',       color: 'bg-humana-green/10 text-humana-green border-humana-green/25' },
-  { label: '2 Towers in Scope',  color: 'bg-humana-teal/10  text-humana-teal  border-humana-teal/25'  },
-  { label: '9 Live Demos',       color: 'bg-humana-navy/10  text-humana-navy  border-humana-navy/20'  },
-  { label: 'Real AI · Real APIs', color: 'bg-amber-50 text-amber-700 border-amber-200'                },
+  { label: 'GitHub — Live Repos & PRs',  color: 'bg-humana-green/10 text-humana-green border-humana-green/25' },
+  { label: 'Azure — Live Infrastructure', color: 'bg-blue-50 text-blue-700 border-blue-200'                   },
+  { label: 'ServiceNow — Live Instance',  color: 'bg-humana-teal/10  text-humana-teal  border-humana-teal/25' },
+  { label: 'Groq AI · LangGraph Agents',  color: 'bg-amber-50 text-amber-700 border-amber-200'                },
 ]
 
 // ─── Tower panels ─────────────────────────────────────────────────────────────
