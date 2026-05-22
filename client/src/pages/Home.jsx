@@ -153,7 +153,7 @@ const STAT_CHIPS = [
   { label: 'GitHub — Live Repos & PRs',  color: 'bg-humana-green/10 text-humana-green border-humana-green/25' },
   { label: 'Azure — Live Infrastructure', color: 'bg-blue-50 text-blue-700 border-blue-200'                   },
   { label: 'ServiceNow — Live Instance',  color: 'bg-humana-teal/10  text-humana-teal  border-humana-teal/25' },
-  { label: 'AI Agents · Autonomous Workflows', color: 'bg-amber-50 text-amber-700 border-amber-200'           },
+  { label: 'AI Agents · LangChain Orchestration', color: 'bg-amber-50 text-amber-700 border-amber-200'        },
 ]
 
 // ─── Tower panels ─────────────────────────────────────────────────────────────
