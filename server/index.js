@@ -13,6 +13,7 @@ const eventsRoutes = require('./routes/events');
 const finopsRoutes = require('./routes/finops');
 const cloudopsRoutes = require('./routes/cloudops');
 const dependenciesRoutes = require('./routes/dependencies');
+const cvitRoutes = require('./routes/cvit');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +46,7 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/finops', finopsRoutes);
 app.use('/api/cloudops', cloudopsRoutes);
 app.use('/api/deps', dependenciesRoutes);
+app.use('/api/cvit', cvitRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

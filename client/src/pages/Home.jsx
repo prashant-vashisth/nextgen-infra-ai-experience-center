@@ -419,7 +419,7 @@ export default function Home() {
           <div className="flex items-center gap-2 mb-6">
             <Zap size={16} className="text-humana-green" />
             <h2 className="text-base font-bold text-white">Live Interactive Demos</h2>
-            <span className="text-white/40 text-xs">— 8 fully wired demos · real AI · real APIs · click to launch</span>
+            <span className="text-white/40 text-xs">— 9 fully wired demos · real AI · real APIs · click to launch</span>
           </div>
 
           {/* IT Operations & Infrastructure */}
@@ -463,7 +463,7 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { path: '/demo/aks-vulnerability-agent',  title: 'AKS Vulnerability & Compliance', desc: 'AI CVE remediation for AKS clusters with HIPAA compliance scoring',               color: 'from-red-700 to-red-900',         badge: 'UC #36', domain: 'Security Eng',     icon: Shield    },
+                { path: '/demo/cvit-workflow',             title: 'CVIT Multi-Agent Orchestrator',  desc: '10-step agentic workflow: LangGraph + Groq tool calling + real Azure/ServiceNow/GitHub', color: 'from-red-700 to-red-900', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
                 { path: '/demo/cloud-onboarding-agent',   title: 'Cloud Onboarding Validation',    desc: 'Reads real Terraform from GitHub, runs 12 IDA checks, AI remediates failures',    color: 'from-humana-teal to-[#006677]',   badge: 'UC #6',  domain: 'Cloud Eng',        icon: Activity  },
                 { path: '/demo/ida-workflow-agent',       title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why analysis and GitHub workflow',         color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
                 { path: '/demo/dependency-risk-agent',    title: 'Dependency Risk Management',     desc: 'Scans real GitHub repos for CVEs, AI risk analysis, creates fix PR automatically', color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', domain: 'Automation Eng',   icon: Shield    },

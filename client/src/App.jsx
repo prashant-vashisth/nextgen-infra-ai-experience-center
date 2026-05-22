@@ -13,6 +13,7 @@ import EventManagementAgent from './pages/EventManagementAgent'
 import FinOpsCostAgent from './pages/FinOpsCostAgent'
 import CloudOnboardingAgent from './pages/CloudOnboardingAgent'
 import DependencyRiskAgent from './pages/DependencyRiskAgent'
+import CVITWorkflowAgent from './pages/CVITWorkflowAgent'
 
 function AppContent() {
   const [presenterMode, setPresenterMode] = useState(false)
@@ -52,6 +53,7 @@ function AppContent() {
           <Route path="/demo/finops-cost-agent"        element={<FinOpsCostAgent />} />
           <Route path="/demo/cloud-onboarding-agent"   element={<CloudOnboardingAgent />} />
           <Route path="/demo/dependency-risk-agent"    element={<DependencyRiskAgent />} />
+          <Route path="/demo/cvit-workflow"            element={<CVITWorkflowAgent />} />
         </Routes>
       </main>
 
