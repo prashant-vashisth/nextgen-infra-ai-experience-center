@@ -46,7 +46,7 @@ export default function HumanaHeader() {
           </Link>
           <span className="hidden lg:inline-flex items-center gap-1.5 bg-white/10 text-white/70 text-xs px-2 py-0.5 rounded border border-white/20">
             <span className="w-1.5 h-1.5 rounded-full bg-humana-teal animate-pulse" />
-            Powered by TCS AI
+            AI-Powered Operations
           </span>
         </div>
 
