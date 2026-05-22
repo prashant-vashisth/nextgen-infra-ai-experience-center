@@ -264,18 +264,13 @@ export default function IDAWorkflowAgent({ scenario }) {
         </div>
       </div>
 
-      {/* Before/After metric strip */}
-      <div className="bg-humana-navy px-6 py-3 flex items-center gap-8 text-white text-sm">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2"><span className="text-white/50 line-through">Manual Time:</span><span className="font-bold">4 hrs / incident</span></div>
-          <div className="text-humana-green font-bold text-lg">→</div>
-          <div className="flex items-center gap-2"><span className="text-white/70">AI Resolution:</span><span className="text-humana-green font-black">8 min</span><span className="bg-humana-green/20 text-humana-green text-xs px-2 py-0.5 rounded-full">97% faster</span></div>
+      {/* Status strip */}
+      {(confidence || aiDuration) && (
+        <div className="bg-humana-navy px-6 py-2.5 flex items-center gap-4 text-white text-xs">
+          {confidence && <span className="text-white/60">AI Confidence: <span className="text-humana-green font-bold">{confidence}%</span></span>}
+          {aiDuration && <span className="text-white/60">Groq responded in <span className="text-amber-400 font-bold">{(aiDuration / 1000).toFixed(2)}s</span></span>}
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          {confidence && <span className="text-xs text-white/60">AI Confidence: <span className="text-humana-green font-bold">{confidence}%</span></span>}
-          {aiDuration && <span className="text-xs text-white/60">Groq responded in <span className="text-amber-400 font-bold">{(aiDuration / 1000).toFixed(2)}s</span></span>}
-        </div>
-      </div>
+      )}
 
       <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
 

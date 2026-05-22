@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import MetricCounter from '../components/MetricCounter'
 import {
   GitBranch, Server, Shield, Activity, ChevronRight, Zap, Clock,
-  ArrowRight, ExternalLink, Building2, Cpu,
+  ExternalLink, Building2, Cpu,
 } from 'lucide-react'
 
 // ─── Tower taxonomy ───────────────────────────────────────────────────────────
@@ -150,15 +149,11 @@ function countForGroup(groupId, tower) {
 
 // ─── Stat chips ───────────────────────────────────────────────────────────────
 
-const TOTAL_FTE = Math.round(
-  USE_CASES.reduce((s, uc) => s + (uc.beforeHrs - uc.afterHrs), 0) / 160
-)
-
 const STAT_CHIPS = [
-  { label: '45 Use Cases',              color: 'bg-humana-green/10 text-humana-green border-humana-green/25' },
-  { label: '2 Towers in Scope',         color: 'bg-humana-teal/10  text-humana-teal  border-humana-teal/25'  },
-  { label: `~${TOTAL_FTE} FTEs saved/yr`, color: 'bg-amber-50 text-amber-700 border-amber-200'              },
-  { label: '67% avg MTTR reduction',    color: 'bg-red-50 text-red-600 border-red-200'                       },
+  { label: '45 Use Cases',       color: 'bg-humana-green/10 text-humana-green border-humana-green/25' },
+  { label: '2 Towers in Scope',  color: 'bg-humana-teal/10  text-humana-teal  border-humana-teal/25'  },
+  { label: '9 Live Demos',       color: 'bg-humana-navy/10  text-humana-navy  border-humana-navy/20'  },
+  { label: 'Real AI · Real APIs', color: 'bg-amber-50 text-amber-700 border-amber-200'                },
 ]
 
 // ─── Tower panels ─────────────────────────────────────────────────────────────
@@ -270,9 +265,7 @@ function PlatformTowerPanel({ tower, activeLeaf, onSelect }) {
 
 // ─── Use-case card ────────────────────────────────────────────────────────────
 
-function UseCaseCard({ uc, index, activeLeaf }) {
-  const savingsPct = uc.beforeHrs > 0 ? Math.round(((uc.beforeHrs - uc.afterHrs) / uc.beforeHrs) * 100) : 0
-
+function UseCaseCard({ uc, index }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
@@ -297,22 +290,14 @@ function UseCaseCard({ uc, index, activeLeaf }) {
         ))}
       </div>
       <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{uc.problem}</p>
-      <div className="mt-auto pt-2 border-t border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-400 line-through">{uc.beforeHrs} hr/mo</span>
-            <ArrowRight size={10} className="text-humana-green" />
-            <span className="text-humana-green font-bold">{uc.afterHrs} hr/mo</span>
-            <span className="bg-green-100 text-humana-green font-bold px-1.5 py-0.5 rounded text-xs">{savingsPct}% ↓</span>
-          </div>
-          {uc.live && uc.path ? (
-            <Link to={uc.path} className="flex items-center gap-1 text-xs text-humana-green font-semibold hover:underline">
-              Open Demo <ExternalLink size={10} />
-            </Link>
-          ) : (
-            <span className="badge-coming-soon">Coming Soon</span>
-          )}
-        </div>
+      <div className="mt-auto pt-2 border-t border-gray-100 flex justify-end">
+        {uc.live && uc.path ? (
+          <Link to={uc.path} className="flex items-center gap-1 text-xs text-humana-green font-semibold hover:underline">
+            Open Demo <ExternalLink size={10} />
+          </Link>
+        ) : (
+          <span className="badge-coming-soon">Coming Soon</span>
+        )}
       </div>
     </motion.div>
   )
@@ -407,7 +392,7 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           >
             {filtered.map((uc, i) => (
-              <UseCaseCard key={uc.id} uc={uc} index={i} activeLeaf={activeLeaf} />
+              <UseCaseCard key={uc.id} uc={uc} index={i} />
             ))}
           </motion.div>
         </AnimatePresence>

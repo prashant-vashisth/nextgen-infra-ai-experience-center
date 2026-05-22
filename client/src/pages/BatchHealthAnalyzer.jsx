@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Server, AlertTriangle, CheckCircle2, XCircle, Loader2, Clock, TrendingDown, Bell, RefreshCw, Zap, PlayCircle, FileText } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import MetricCounter from '../components/MetricCounter'
 import LiveIndicator from '../components/LiveIndicator'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -43,7 +41,6 @@ export default function BatchHealthAnalyzer({ scenario }) {
   const [aiAnalysis, setAiAnalysis] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisDuration, setAnalysisDuration] = useState(null)
-  const [showBeforeAfter, setShowBeforeAfter] = useState(true) // true = after AI
   const [alerts, setAlerts] = useState(generateAlerts())
   const [incidentCreated, setIncidentCreated] = useState(null)
   const [isRemediating, setIsRemediating] = useState(false)
@@ -151,12 +148,6 @@ Provide: 1) Root cause (2 sentences), 2) Immediate remediation steps (3-4 steps)
   }
 
   const systemJobs = jobs.filter(j => j.system === activeSystem)
-  const chartData = SYSTEMS.map(s => ({
-    name: s.label,
-    'Before AI': s.before,
-    'After AI': s.after,
-    savings: Math.round(((s.before - s.after) / s.before) * 100),
-  }))
 
   return (
     <div className="min-h-screen bg-humana-light">
@@ -180,22 +171,18 @@ Provide: 1) Root cause (2 sentences), 2) Immediate remediation steps (3-4 steps)
         </div>
       </div>
 
-      {/* Metrics Bar */}
+      {/* Status Bar */}
       {summary && (
-        <div className="bg-humana-navy px-6 py-3 grid grid-cols-3 md:grid-cols-7 gap-4 text-white text-sm">
+        <div className="bg-humana-navy px-6 py-3 grid grid-cols-3 md:grid-cols-5 gap-4 text-white text-sm">
           {[
-            { label: 'Total Jobs', value: summary.total, color: 'text-white' },
-            { label: 'Healthy', value: summary.healthy, color: 'text-humana-green' },
-            { label: 'Running', value: summary.running, color: 'text-blue-300' },
-            { label: 'Warning', value: summary.warning, color: 'text-amber-400' },
-            { label: 'Failed', value: summary.failed, color: 'text-red-400' },
-            { label: 'SLA At Risk', value: summary.slaAtRisk, color: 'text-red-300' },
-            { label: 'Saved hrs/mo', value: summary.savedHoursThisMonth, color: 'text-humana-green' },
+            { label: 'Total Jobs',  value: summary.total,   color: 'text-white'         },
+            { label: 'Healthy',     value: summary.healthy, color: 'text-humana-green'   },
+            { label: 'Running',     value: summary.running, color: 'text-blue-300'        },
+            { label: 'Warning',     value: summary.warning, color: 'text-amber-400'       },
+            { label: 'Failed',      value: summary.failed,  color: 'text-red-400'         },
           ].map(m => (
             <div key={m.label} className="text-center">
-              <div className={`text-xl font-black ${m.color}`}>
-                <MetricCounter value={m.value || 0} duration={1000} />
-              </div>
+              <div className={`text-xl font-black ${m.color}`}>{m.value || 0}</div>
               <div className="text-xs text-white/50">{m.label}</div>
             </div>
           ))}
@@ -289,41 +276,18 @@ Provide: 1) Root cause (2 sentences), 2) Immediate remediation steps (3-4 steps)
             </div>
           </div>
 
-          {/* Before/After Chart */}
+          {/* Systems covered */}
           <div className="card-humana p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-humana-navy text-sm flex items-center gap-2">
-                <TrendingDown size={14} className="text-humana-green" />
-                FTE Hours Savings by System
-              </h3>
-              <button
-                onClick={() => setShowBeforeAfter(p => !p)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${showBeforeAfter ? 'bg-humana-green text-white' : 'bg-gray-200 text-gray-600'}`}
-              >
-                {showBeforeAfter ? 'After AI (Current)' : 'Before AI'}
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} unit="h" />
-                <Tooltip formatter={(v, n) => [`${v} hr/mo`, n]} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {!showBeforeAfter && <Bar dataKey="Before AI" fill="#ef4444" radius={[3,3,0,0]} />}
-                <Bar dataKey="After AI" fill="#00A651" radius={[3,3,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-2 grid grid-cols-5 gap-2">
-              {SYSTEMS.map(s => {
-                const savings = Math.round(((s.before - s.after) / s.before) * 100)
-                return (
-                  <div key={s.id} className="text-center bg-green-50 rounded-lg p-2">
-                    <div className="text-sm font-black text-humana-green">{savings}%</div>
-                    <div className="text-xs text-gray-500 leading-tight">{s.label.split(' ')[0]}</div>
-                  </div>
-                )
-              })}
+            <h3 className="font-semibold text-humana-navy text-sm mb-3 flex items-center gap-2">
+              <TrendingDown size={14} className="text-humana-green" />
+              Batch Systems Covered
+            </h3>
+            <div className="grid grid-cols-5 gap-2">
+              {SYSTEMS.map(s => (
+                <div key={s.id} className="text-center bg-green-50 rounded-lg p-2">
+                  <div className="text-xs text-gray-600 font-semibold leading-tight">{s.label.split(' ')[0]}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -116,7 +116,7 @@ export default function EventManagementAgent({ scenario }) {
               UC #22 · IT Operations — TOC / AOC
             </div>
             <h1 className="text-xl font-bold text-humana-navy">Event Management, Anomaly Detection & Self-Heal</h1>
-            <p className="text-sm text-gray-500 mt-0.5">AIOps: 2,400 alerts/day → AI deduplication → 3 actionable incidents → auto-remediation</p>
+            <p className="text-sm text-gray-500 mt-0.5">AIOps: multi-source alert ingestion → AI correlation → actionable incident clusters → auto-remediation</p>
           </div>
           <div className="flex items-center gap-3">
             {phase !== 'idle' && <LiveIndicator label={phase === 'streaming' ? 'INGESTING' : 'LIVE'} color={phase === 'streaming' ? 'amber' : 'green'} />}
@@ -127,12 +127,6 @@ export default function EventManagementAgent({ scenario }) {
         </div>
       </div>
 
-      {/* Before/after strip */}
-      <div className="bg-humana-navy text-white px-6 py-3 flex flex-wrap items-center gap-8 text-sm">
-        <span className="text-white/50 line-through">Manual: 2,400 alerts/day · 80% noise · avg MTTR 4.2 hrs</span>
-        <span className="text-humana-green font-black text-lg">→</span>
-        <span>AI: <span className="text-humana-green font-black">3 incidents</span> · <span className="text-humana-green font-black">97% noise reduction</span> · MTTR <span className="text-humana-green font-black">8 min</span></span>
-      </div>
 
       <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -204,7 +198,7 @@ export default function EventManagementAgent({ scenario }) {
                       <span className="text-xs text-humana-green font-bold bg-green-50 px-2 py-0.5 rounded-full">{inc.confidence}% confidence</span>
                     </div>
                     <div className="text-sm font-semibold text-humana-navy leading-tight mb-1">{inc.title}</div>
-                    <div className="text-xs text-gray-500">{inc.rootAlerts?.length} alerts correlated · MTTR: <span className="text-red-500 line-through">{inc.mttr.manual}</span> → <span className="text-humana-green font-bold">{inc.mttr.ai}</span></div>
+                    <div className="text-xs text-gray-500">{inc.rootAlerts?.length} alerts correlated · {inc.affectedService}</div>
                     <div className="flex items-center justify-between mt-2">
                       <button onClick={e => { e.stopPropagation(); selfHeal(inc) }}
                         disabled={healState[inc.id] === 'healing' || healState[inc.id] === 'done'}

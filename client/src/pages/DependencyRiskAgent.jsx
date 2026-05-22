@@ -126,11 +126,6 @@ export default function DependencyRiskAgent() {
         </div>
       </div>
 
-      <div className="bg-humana-navy text-white px-6 py-3 flex flex-wrap items-center gap-8 text-sm">
-        <span className="text-white/50 line-through">Manual: dependency audit every 6 months · avg 40-day CVE remediation</span>
-        <span className="text-humana-green font-black text-lg">→</span>
-        <span>AI: <span className="text-humana-green font-black">continuous scanning</span> · <span className="text-humana-green font-black">auto PR in 3 min</span> · real GitHub integration</span>
-      </div>
 
       <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
 

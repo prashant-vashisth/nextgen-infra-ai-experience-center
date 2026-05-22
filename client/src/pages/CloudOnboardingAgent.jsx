@@ -92,11 +92,6 @@ export default function CloudOnboardingAgent() {
         </div>
       </div>
 
-      <div className="bg-humana-navy text-white px-6 py-3 flex flex-wrap items-center gap-8 text-sm">
-        <span className="text-white/50 line-through">Manual onboarding checklist: 3 days · 47 manual steps</span>
-        <span className="text-humana-green font-black text-lg">→</span>
-        <span>AI validation: <span className="text-humana-green font-black">under 60 seconds</span> · <span className="text-humana-green font-black">12 automated checks</span> · real GitHub repo</span>
-      </div>
 
       <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
 

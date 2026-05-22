@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Filter, ArrowRight, ExternalLink } from 'lucide-react'
+import { Search, Filter, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 // Re-use the same USE_CASES array - import from a shared module would be better
@@ -57,46 +57,37 @@ export default function Catalog() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((uc, i) => {
-          const savings = Math.round(((uc.beforeHrs - uc.afterHrs) / uc.beforeHrs) * 100)
-          return (
-            <motion.div
-              key={uc.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className={`card-humana p-4 flex flex-col gap-3 ${uc.live ? 'border border-humana-green/30' : ''}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="text-xs text-gray-400 font-bold">#{uc.id}</span>
-                  <h3 className="text-sm font-semibold text-humana-navy mt-0.5 leading-tight">{uc.title}</h3>
-                </div>
-                {uc.live ? (
-                  <span className="badge-live shrink-0"><span className="live-dot" />LIVE</span>
-                ) : (
-                  <span className="badge-coming-soon shrink-0">Soon</span>
-                )}
+        {filtered.map((uc, i) => (
+          <motion.div
+            key={uc.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className={`card-humana p-4 flex flex-col gap-3 ${uc.live ? 'border border-humana-green/30' : ''}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="text-xs text-gray-400 font-bold">#{uc.id}</span>
+                <h3 className="text-sm font-semibold text-humana-navy mt-0.5 leading-tight">{uc.title}</h3>
               </div>
-              <div className="flex flex-wrap gap-1">
-                <span className="text-xs bg-humana-navy/10 text-humana-navy px-2 py-0.5 rounded-full">{uc.category}</span>
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{uc.domain}</span>
-              </div>
-              <p className="text-xs text-gray-600 line-clamp-2">{uc.problem}</p>
-              <div className="flex items-center gap-2 text-xs mt-auto">
-                <span className="text-gray-400 line-through">{uc.beforeHrs}h/mo</span>
-                <ArrowRight size={10} className="text-humana-green" />
-                <span className="text-humana-green font-bold">{uc.afterHrs}h/mo</span>
-                <span className="ml-auto bg-green-100 text-humana-green font-bold px-2 py-0.5 rounded">{savings}%↓</span>
-              </div>
-              {uc.live && uc.path && (
-                <Link to={uc.path} className="btn-primary text-xs py-1.5 justify-center">
-                  Launch Demo <ExternalLink size={12} />
-                </Link>
+              {uc.live ? (
+                <span className="badge-live shrink-0"><span className="live-dot" />LIVE</span>
+              ) : (
+                <span className="badge-coming-soon shrink-0">Soon</span>
               )}
-            </motion.div>
-          )
-        })}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <span className="text-xs bg-humana-navy/10 text-humana-navy px-2 py-0.5 rounded-full">{uc.category}</span>
+              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{uc.domain}</span>
+            </div>
+            <p className="text-xs text-gray-600 line-clamp-2">{uc.problem}</p>
+            {uc.live && uc.path && (
+              <Link to={uc.path} className="btn-primary text-xs py-1.5 justify-center mt-auto">
+                Launch Demo <ExternalLink size={12} />
+              </Link>
+            )}
+          </motion.div>
+        ))}
       </div>
     </div>
   )

@@ -64,7 +64,6 @@ export default function FinOpsCostAgent() {
 
   const totalSpend = data?.services?.reduce((s, sv) => s + Number(sv.amount), 0) || 0
   const anomalyCount = data?.anomalies?.length || 0
-  const savingsOpp = totalSpend * 0.23
 
   const chartData = (data?.costs || []).map(c => ({
     date: c.date.slice(5),
@@ -96,19 +95,19 @@ export default function FinOpsCostAgent() {
         </div>
       </div>
 
-      {/* KPI bar */}
-      <div className="bg-humana-navy text-white px-6 py-3 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-        {[
-          { label: 'Month-to-Date Spend',  value: `$${Math.round(totalSpend).toLocaleString()}`,  color: 'text-white'         },
-          { label: 'Anomalies Detected',   value: anomalyCount,                                    color: 'text-red-400'       },
-          { label: 'Savings Opportunity',  value: `$${Math.round(savingsOpp).toLocaleString()}/mo`, color: 'text-humana-green' },
-          { label: 'Overage Risk',         value: '27.7%',                                         color: 'text-amber-400'     },
-        ].map(k => (
-          <div key={k.label} className="text-center">
-            <div className={`text-xl font-black ${k.color}`}>{k.value}</div>
-            <div className="text-xs text-white/50">{k.label}</div>
-          </div>
-        ))}
+      {/* Status bar */}
+      <div className="bg-humana-navy text-white px-6 py-3 flex flex-wrap items-center gap-8 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-white/60">Anomalies detected:</span>
+          <span className={`font-black text-lg ${anomalyCount > 0 ? 'text-red-400' : 'text-humana-green'}`}>{anomalyCount}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-white/60">Data source:</span>
+          <span className="text-humana-green font-semibold">{data?.mode === 'live' ? 'Azure Cost Management (Live)' : 'Demo mode'}</span>
+        </div>
+        {data?.mode !== 'live' && (
+          <span className="text-amber-400 text-xs">Add Cost Management Reader role to service principal for live data</span>
+        )}
       </div>
 
       <div className="p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -138,7 +137,7 @@ export default function FinOpsCostAgent() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={3} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={v => [`$${Number(v).toLocaleString()}`, 'Daily Spend']} />
+                  <Tooltip formatter={v => [Number(v).toLocaleString(), 'Daily Spend']} />
                   <Area type="monotone" dataKey="amount" stroke="#0099A8" strokeWidth={2} fill="url(#costGrad)" />
                   {chartData.filter(d => d.anomaly).map((d, i) => (
                     <ReferenceDot key={i} x={d.date} y={d.amount} r={6} fill="#ef4444" stroke="white" strokeWidth={2} />
@@ -160,7 +159,7 @@ export default function FinOpsCostAgent() {
                   <div key={i}>
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span className="font-medium text-gray-700 truncate">{svc.service}</span>
-                      <span className="font-bold text-humana-navy ml-2">${Number(svc.amount).toLocaleString()}</span>
+                      <span className="font-bold text-humana-navy ml-2">{Number(svc.amount).toLocaleString()}</span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ delay: i * 0.07, duration: 0.6 }}
@@ -191,9 +190,9 @@ export default function FinOpsCostAgent() {
                       <span className="text-xs font-mono text-gray-500">{a.date}</span>
                       <span className="text-xs font-bold text-red-600">+{a.pct}% over expected</span>
                     </div>
-                    <div className="text-sm font-bold text-humana-navy">${Number(a.amount).toLocaleString()}</div>
+                    <div className="text-sm font-bold text-humana-navy">Anomalous spend detected</div>
                     <div className="text-xs text-gray-500 mt-0.5">{a.reason || a.service}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">Expected: ~${Number(a.expected).toLocaleString()}/day</div>
+                    <div className="text-xs text-gray-400 mt-0.5">+{a.pct}% above daily baseline</div>
                   </motion.div>
                 ))}
               </div>

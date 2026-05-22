@@ -192,13 +192,11 @@ export default function CVITWorkflowAgent() {
         </div>
       </div>
 
-      {/* Time comparison bar */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-2 flex flex-wrap items-center gap-8 text-xs">
-        <span className="text-gray-500 line-through">Manual process: avg 47 days MTTR · 320 hr/mo manual effort</span>
-        <span className="text-humana-green font-black text-sm">→</span>
-        <span className="text-gray-300">AI agents: <span className="text-humana-green font-black">under 15 min</span> · zero manual diagnosis</span>
-        {isRunning && timing.start && <span className="ml-auto text-amber-400 font-mono">⏱ {elapsedSec}s elapsed</span>}
-        {completedSec && <span className="ml-auto text-humana-green font-mono font-bold">✓ Completed in {completedSec}s</span>}
+      {/* Status bar */}
+      <div className="bg-gray-900 border-b border-gray-800 px-6 py-2 flex flex-wrap items-center gap-4 text-xs">
+        <span className="text-gray-500">LangGraph StateGraph · Groq tool calling · NVD API · ServiceNow · GitHub</span>
+        {isRunning && timing.start && <span className="ml-auto text-amber-400 font-mono">⏱ {elapsedSec}s</span>}
+        {isCompleted && <span className="ml-auto text-humana-green font-mono font-bold">✓ Workflow complete</span>}
       </div>
 
       <div className="flex h-[calc(100vh-130px)]">
@@ -434,7 +432,7 @@ export default function CVITWorkflowAgent() {
                 <span className="text-humana-green font-bold text-sm">Workflow Complete</span>
               </div>
               <div className="space-y-1.5 text-xs">
-                {completedSec && <div className="text-gray-400">⏱ Total time: <span className="text-humana-green font-bold">{completedSec}s</span> <span className="text-gray-600 line-through">(manual: 47 days)</span></div>}
+                {isCompleted && <div className="text-humana-green font-semibold text-xs">✓ All 10 steps complete</div>}
                 {artifacts.change && <div className="text-gray-400">📋 Change: <span className="font-mono text-white">{artifacts.change.number}</span></div>}
                 {artifacts.incident && <div className="text-gray-400">🎫 Incident: <span className="font-mono text-white">{artifacts.incident.number}</span></div>}
                 {artifacts.pr && <div className="text-gray-400">🔀 PR: <span className="font-mono text-white">#{artifacts.pr.number}</span></div>}
