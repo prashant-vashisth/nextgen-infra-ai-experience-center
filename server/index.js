@@ -9,6 +9,10 @@ const servicenowRoutes = require('./routes/servicenow');
 const batchRoutes = require('./routes/batch');
 const idaRoutes = require('./routes/ida');
 const aksRoutes = require('./routes/aks');
+const eventsRoutes = require('./routes/events');
+const finopsRoutes = require('./routes/finops');
+const cloudopsRoutes = require('./routes/cloudops');
+const dependenciesRoutes = require('./routes/dependencies');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +41,10 @@ app.use('/api/snow', servicenowRoutes);
 app.use('/api/batch', batchRoutes);
 app.use('/api/ida', idaRoutes);
 app.use('/api/aks', aksRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/finops', finopsRoutes);
+app.use('/api/cloudops', cloudopsRoutes);
+app.use('/api/deps', dependenciesRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

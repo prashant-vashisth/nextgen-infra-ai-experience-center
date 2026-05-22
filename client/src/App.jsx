@@ -9,6 +9,10 @@ import IDAWorkflowAgent from './pages/IDAWorkflowAgent'
 import BatchHealthAnalyzer from './pages/BatchHealthAnalyzer'
 import RCAandCMDB from './pages/RCAandCMDB'
 import AKSVulnerability from './pages/AKSVulnerability'
+import EventManagementAgent from './pages/EventManagementAgent'
+import FinOpsCostAgent from './pages/FinOpsCostAgent'
+import CloudOnboardingAgent from './pages/CloudOnboardingAgent'
+import DependencyRiskAgent from './pages/DependencyRiskAgent'
 
 function AppContent() {
   const [presenterMode, setPresenterMode] = useState(false)
@@ -25,8 +29,6 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [])
 
-  const mainPaddingLeft = isDemo && !presenterMode ? '' : ''
-
   return (
     <div className="min-h-screen bg-humana-light font-sans">
       <HumanaHeader
@@ -36,16 +38,20 @@ function AppContent() {
 
       {isDemo && <DemoAgenda />}
 
-      <main
-        className={`pt-14 transition-all duration-300 ${isDemo ? 'pl-52' : ''} ${presenterMode ? 'pb-16' : ''}`}
-      >
+      <main className={`pt-14 transition-all duration-300 ${isDemo ? 'pl-52' : ''} ${presenterMode ? 'pb-16' : ''}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/catalog" element={<Catalog />} />
-          <Route path="/demo/ida-workflow-agent" element={<IDAWorkflowAgent scenario={scenario} />} />
-          <Route path="/demo/batch-health-analyzer" element={<BatchHealthAnalyzer scenario={scenario} />} />
-          <Route path="/demo/rca-cmdb-agent" element={<RCAandCMDB scenario={scenario} />} />
-          <Route path="/demo/aks-vulnerability-agent" element={<AKSVulnerability scenario={scenario} />} />
+          {/* Original 4 demos */}
+          <Route path="/demo/aks-vulnerability-agent"  element={<AKSVulnerability scenario={scenario} />} />
+          <Route path="/demo/ida-workflow-agent"       element={<IDAWorkflowAgent scenario={scenario} />} />
+          <Route path="/demo/batch-health-analyzer"    element={<BatchHealthAnalyzer scenario={scenario} />} />
+          <Route path="/demo/rca-cmdb-agent"           element={<RCAandCMDB scenario={scenario} />} />
+          {/* New 4 demos — one per core domain */}
+          <Route path="/demo/event-management-agent"   element={<EventManagementAgent scenario={scenario} />} />
+          <Route path="/demo/finops-cost-agent"        element={<FinOpsCostAgent />} />
+          <Route path="/demo/cloud-onboarding-agent"   element={<CloudOnboardingAgent />} />
+          <Route path="/demo/dependency-risk-agent"    element={<DependencyRiskAgent />} />
         </Routes>
       </main>
 

@@ -85,14 +85,14 @@ const USE_CASES = [
   { id: 3,  domain: 'Automation Engineering', title: 'Platform Build Agent',                                 category: 'Module Onboarding',        problem: 'Module & tenant onboarding requires 2 weeks manual effort',                   beforeHrs: 180,  afterHrs: 22,  tools: ['GitHub','Terraform','Azure DevOps'],                           live: false, subcategories: ['automation-engineering','cloud-engineering','cape'] },
   { id: 4,  domain: 'Automation Engineering', title: 'Code Base Administration',                             category: 'AI Bug Fixes',             problem: 'Bug triage and patching creates developer context-switching overhead',         beforeHrs: 220,  afterHrs: 66,  tools: ['GitHub','SonarQube','Groq AI'],                               live: false, subcategories: ['automation-engineering'] },
   { id: 5,  domain: 'Automation Engineering', title: 'Compliance Agent — Secret & Credential Remediation',   category: 'Compliance',               problem: 'Exposed secrets in repos discovered too late, manual remediation slow',        beforeHrs: 160,  afterHrs: 32,  tools: ['GitHub','HashiCorp Vault','Azure Key Vault'],                 live: false, subcategories: ['security-engineering','automation-engineering','iss'] },
-  { id: 6,  domain: 'Automation Engineering', title: 'Azure/GCP Onboarding — AI Validation',                 category: 'Cloud Onboarding',         problem: 'Cloud subscription onboarding requires 3-day manual checklist',               beforeHrs: 120,  afterHrs: 18,  tools: ['Azure ARM','GCP APIs','Terraform'],                           live: false, subcategories: ['cloud-engineering','automation-engineering','cape'] },
+  { id: 6,  domain: 'Automation Engineering', title: 'Azure/GCP Onboarding — AI Validation',                 category: 'Cloud Onboarding',         problem: 'Cloud subscription onboarding requires 3-day manual checklist',               beforeHrs: 120,  afterHrs: 18,  tools: ['Azure ARM','GCP APIs','Terraform'],                           live: true, path: '/demo/cloud-onboarding-agent', subcategories: ['cloud-engineering','automation-engineering','cape'] },
   { id: 7,  domain: 'Automation Engineering', title: 'Azure/GCP Onboarding — Code Optimization',             category: 'Code Optimization',        problem: 'IaC modules contain inefficient patterns increasing cloud spend 23%',          beforeHrs: 200,  afterHrs: 50,  tools: ['Azure Advisor','Terraform','GitHub'],                         live: false, subcategories: ['cloud-engineering','automation-engineering','finops'] },
   { id: 8,  domain: 'Automation Engineering', title: 'Configuration Template Creation',                      category: 'Scaffolding Agent',        problem: 'New configuration templates take 8 hrs of senior engineer time each',         beforeHrs: 96,   afterHrs: 12,  tools: ['GitHub','Terraform','Ansible'],                               live: false, subcategories: ['automation-engineering'] },
   { id: 9,  domain: 'Automation Engineering', title: 'IDA Workflow Assist Agent',                            category: 'Guided Explainability',    problem: 'IDA pipeline failures generate cryptic errors requiring expert analysis',      beforeHrs: 240,  afterHrs: 48,  tools: ['GitHub Actions','IDA Engine','ServiceNow KB','Groq AI'],      live: true,  path: '/demo/ida-workflow-agent', subcategories: ['automation-engineering','toc','aoc'] },
   { id: 10, domain: 'Automation Engineering', title: 'Terraform Debug Agent',                                category: 'Debug Automation',         problem: 'Terraform state corruption and plan failures require expert debugging',        beforeHrs: 180,  afterHrs: 36,  tools: ['Terraform Cloud','GitHub','Splunk'],                          live: false, subcategories: ['automation-engineering','splunk'] },
   { id: 11, domain: 'Automation Engineering', title: 'Validate Unit & Integration Test Results',              category: 'Test Validation',          problem: 'Test result analysis consumes 20% of developer sprint time',                  beforeHrs: 140,  afterHrs: 28,  tools: ['GitHub Actions','pytest','SonarQube'],                        live: false, subcategories: ['automation-engineering'] },
   { id: 12, domain: 'Automation Engineering', title: 'API Handler Issue Remediation',                        category: 'API Operations',           problem: 'API handler failures cause cascading downstream outages',                     beforeHrs: 160,  afterHrs: 40,  tools: ['Kong','Dynatrace','ServiceNow'],                              live: false, subcategories: ['aoc','dynatrace','apigee','graphql','datapowr'] },
-  { id: 13, domain: 'Automation Engineering', title: 'AI-Driven Dependency Risk Management',                 category: 'Risk Management',          problem: 'Outdated dependencies with known CVEs accumulate undetected',                 beforeHrs: 200,  afterHrs: 50,  tools: ['Snyk','GitHub','Groq AI'],                                    live: false, subcategories: ['security-engineering','automation-engineering','iss'] },
+  { id: 13, domain: 'Automation Engineering', title: 'AI-Driven Dependency Risk Management',                 category: 'Risk Management',          problem: 'Outdated dependencies with known CVEs accumulate undetected',                 beforeHrs: 200,  afterHrs: 50,  tools: ['Snyk','GitHub','Groq AI'],                                    live: true, path: '/demo/dependency-risk-agent', subcategories: ['security-engineering','automation-engineering','iss'] },
   { id: 14, domain: 'Automation Engineering', title: 'Capacity Insight and Recommendation',                  category: 'Capacity Planning',        problem: 'Manual capacity forecasting leads to 35% over-provisioning',                  beforeHrs: 120,  afterHrs: 24,  tools: ['Azure Monitor','Dynatrace','Power BI'],                       live: false, subcategories: ['finops','dynatrace','toc'] },
   { id: 15, domain: 'Automation Engineering', title: 'Conversational Support Agent for Cloud Provisioning',  category: 'Conversational AI',        problem: 'L1 cloud provisioning tickets require senior engineer intervention',           beforeHrs: 300,  afterHrs: 60,  tools: ['MS Teams','ServiceNow','Azure ARM'],                          live: false, subcategories: ['enterprise-itsm','cloud-engineering'] },
 
@@ -103,7 +103,7 @@ const USE_CASES = [
   { id: 19, domain: 'Infra Ops / ESC',        title: 'CVIT Remediation',                                     category: 'Vulnerability Management', problem: 'CVIT backlog grows at 150 items/month with 40-day avg remediation',           beforeHrs: 600,  afterHrs: 120, tools: ['Qualys','ServiceNow','Ansible'],                              live: false, subcategories: ['security-engineering','iss'] },
   { id: 20, domain: 'Infra Ops / ESC',        title: 'Middleware Upgrade',                                   category: 'Upgrade Automation',       problem: 'Middleware upgrades require 6-week manual change windows',                    beforeHrs: 720,  afterHrs: 144, tools: ['Ansible','ServiceNow','Dynatrace'],                           live: false, subcategories: ['compute-storage','dynatrace'] },
   { id: 21, domain: 'Infra Ops / ESC',        title: 'AI-Driven OS Image Update and Hardening',              category: 'OS Hardening',             problem: 'OS image updates across 3,000 VMs take 4 months manually',                   beforeHrs: 960,  afterHrs: 192, tools: ['Azure VM','Packer','CIS Benchmarks'],                         live: false, subcategories: ['compute-storage','security-engineering','cape'] },
-  { id: 22, domain: 'Infra Ops / ESC',        title: 'Event Management, Anomaly Detection & Self-Heal',      category: 'AIOps',                    problem: 'Alert storm overwhelms L1: 2,400 alerts/day, 80% noise',                     beforeHrs: 520,  afterHrs: 104, tools: ['Dynatrace','Splunk','ServiceNow','Azure Monitor'],            live: false, subcategories: ['toc','aoc','dynatrace','splunk'] },
+  { id: 22, domain: 'Infra Ops / ESC',        title: 'Event Management, Anomaly Detection & Self-Heal',      category: 'AIOps',                    problem: 'Alert storm overwhelms L1: 2,400 alerts/day, 80% noise',                     beforeHrs: 520,  afterHrs: 104, tools: ['Dynatrace','Splunk','ServiceNow','Azure Monitor'],            live: true, path: '/demo/event-management-agent', subcategories: ['toc','aoc','dynatrace','splunk'] },
   { id: 23, domain: 'Infra Ops / ESC',        title: 'Major Incident Avoidance and Management (MIM)',        category: 'MIM Orchestrator',         problem: 'P1 MTTR averages 4.2 hrs due to manual war room coordination',               beforeHrs: 380,  afterHrs: 76,  tools: ['ServiceNow','PagerDuty','MS Teams','Dynatrace'],              live: false, subcategories: ['incident-response','toc','dynatrace'] },
   { id: 24, domain: 'Infra Ops / ESC',        title: 'Autonomous Change Validation',                         category: 'Change Management',        problem: 'Change validation is a 3-day manual process blocking deployment velocity',    beforeHrs: 480,  afterHrs: 72,  tools: ['ServiceNow','GitHub','Dynatrace'],                            live: false, subcategories: ['enterprise-itsm','aoc','dynatrace'] },
   { id: 25, domain: 'Infra Ops / ESC',        title: 'Batch Health Analyzer',                                category: 'Batch Operations',         problem: '2,280 hrs/mo manual batch monitoring across 5 systems with 62% noise',       beforeHrs: 2281, afterHrs: 830, tools: ['Control-M','Mainframe','Informatica','Oracle','Nabu'],        live: true,  path: '/demo/batch-health-analyzer', subcategories: ['toc','data-engineering'] },
@@ -120,7 +120,7 @@ const USE_CASES = [
   { id: 32, domain: 'Security Engineering',   title: 'Configuration Anomaly Detection',                      category: 'Security Monitoring',      problem: 'Config drift goes undetected for avg 18 days creating compliance gaps',      beforeHrs: 360,  afterHrs: 72,  tools: ['Prisma Cloud','Azure Policy','Splunk'],                       live: false, subcategories: ['security-engineering','iss','splunk'] },
   { id: 33, domain: 'Security Engineering',   title: 'Code Review / Refactoring & Bug Fixing',               category: 'Secure Code Review',       problem: 'Security code review backlogs cause 3-week delivery delays',                 beforeHrs: 280,  afterHrs: 56,  tools: ['SonarQube','Checkmarx','GitHub'],                             live: false, subcategories: ['security-engineering','automation-engineering'] },
   { id: 34, domain: 'Security Engineering',   title: 'Predictive Capacity Planning, Rightsizing & Demand Forecasting', category: 'FinOps AI',  problem: '35% cloud resources over-provisioned, wasting $2.4M annually',              beforeHrs: 240,  afterHrs: 48,  tools: ['Azure Advisor','Azure Cost','Turbonomic'],                    live: false, subcategories: ['finops'] },
-  { id: 35, domain: 'Security Engineering',   title: 'Cost Anomaly Detection, Budget Forecasting',           category: 'FinOps',                   problem: 'Cost spikes discovered 30+ days after occurrence on monthly bills',          beforeHrs: 180,  afterHrs: 36,  tools: ['Azure Cost Management','Power BI','Groq AI'],                live: false, subcategories: ['finops'] },
+  { id: 35, domain: 'Security Engineering',   title: 'Cost Anomaly Detection, Budget Forecasting',           category: 'FinOps',                   problem: 'Cost spikes discovered 30+ days after occurrence on monthly bills',          beforeHrs: 180,  afterHrs: 36,  tools: ['Azure Cost Management','Power BI','Groq AI'],                live: true, path: '/demo/finops-cost-agent', subcategories: ['finops'] },
   { id: 36, domain: 'Security Engineering',   title: 'AKS Vulnerability & Compliance AI Remediation',        category: 'Container Security',       problem: 'CVE remediation cycle averages 47 days; HIPAA controls fail 26% of time',   beforeHrs: 480,  afterHrs: 96,  tools: ['Prisma Cloud','AKS','GitHub','NIST','HIPAA'],                 live: true,  path: '/demo/aks-vulnerability-agent', subcategories: ['security-engineering','cloud-engineering','cape'] },
 
   // ESC / ITSM
@@ -416,35 +416,74 @@ export default function Home() {
       {/* ── Live Interactive Demos ── */}
       <section className="bg-humana-navy mt-6 px-6 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-6">
             <Zap size={16} className="text-humana-green" />
             <h2 className="text-base font-bold text-white">Live Interactive Demos</h2>
-            <span className="text-white/40 text-xs">— 4 fully wired demos with real AI · click to launch</span>
+            <span className="text-white/40 text-xs">— 8 fully wired demos · real AI · real APIs · click to launch</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { path: '/demo/aks-vulnerability-agent', title: 'AKS Vulnerability & Compliance', desc: 'AI CVE remediation for Kubernetes with HIPAA compliance scoring',            color: 'from-red-600 to-red-800',         badge: 'UC #36', time: '15 min', icon: Shield    },
-              { path: '/demo/ida-workflow-agent',      title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why and automated remediation',      color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  time: '20 min', icon: GitBranch },
-              { path: '/demo/batch-health-analyzer',   title: 'Batch Health Analyzer',          desc: 'Unified NOC for Control-M, Mainframe, Toad, Informatica, and Nabu',         color: 'from-emerald-700 to-emerald-900', badge: 'UC #25', time: '20 min', icon: Server    },
-              { path: '/demo/rca-cmdb-agent',          title: 'RCA Agent + CMDB Enrichment',    desc: 'Problem ticket RCA with multi-source correlation and CMDB health dashboard', color: 'from-purple-700 to-purple-900',   badge: 'UC #41', time: '20 min', icon: Activity  },
-            ].map(demo => (
-              <Link key={demo.path} to={demo.path} className="group">
-                <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
-                    <span className="flex items-center gap-1 text-xs text-white/60">
-                      <Clock size={10} />{demo.time}
-                    </span>
+
+          {/* IT Operations & Infrastructure */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">IT Operations & Infrastructure</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { path: '/demo/event-management-agent', title: 'Event Management & Self-Heal', desc: 'AIOps: 2,400 alerts/day → AI deduplication → 3 incidents → auto-remediation',  color: 'from-amber-700 to-amber-900',   badge: 'UC #22', domain: 'IT Operations', icon: Activity  },
+                { path: '/demo/batch-health-analyzer',  title: 'Batch Health Analyzer',        desc: 'Unified NOC for Control-M, Mainframe, Toad, Informatica & Nabu pipelines',     color: 'from-emerald-700 to-emerald-900',badge: 'UC #25', domain: 'IT Infra Ops',  icon: Server    },
+                { path: '/demo/rca-cmdb-agent',         title: 'RCA Agent + CMDB Enrichment',  desc: 'Problem ticket RCA with multi-source correlation and CMDB health dashboard',    color: 'from-purple-700 to-purple-900', badge: 'UC #41', domain: 'IT Infra Ops',  icon: Activity  },
+                { path: '/demo/finops-cost-agent',      title: 'FinOps Cost Anomaly Agent',    desc: 'Azure cost intelligence: detect spend anomalies, forecast overages, right-size', color: 'from-orange-700 to-orange-900', badge: 'UC #35', domain: 'FinOps',        icon: Zap       },
+              ].map(demo => (
+                <Link key={demo.path} to={demo.path} className="group">
+                  <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
+                      <span className="text-xs text-white/50">{demo.domain}</span>
+                    </div>
+                    <demo.icon size={22} className="text-white/70 mb-2" />
+                    <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
+                    <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
+                    <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
+                      Launch <ChevronRight size={12} />
+                    </div>
                   </div>
-                  <demo.icon size={26} className="text-white/70 mb-3" />
-                  <h3 className="font-bold text-sm leading-snug mb-2">{demo.title}</h3>
-                  <p className="text-white/60 text-xs leading-relaxed flex-1">{demo.desc}</p>
-                  <div className="mt-4 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
-                    Launch Demo <ChevronRight size={13} />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Platform Engineering */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">Platform Engineering</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { path: '/demo/aks-vulnerability-agent',  title: 'AKS Vulnerability & Compliance', desc: 'AI CVE remediation for AKS clusters with HIPAA compliance scoring',               color: 'from-red-700 to-red-900',         badge: 'UC #36', domain: 'Security Eng',     icon: Shield    },
+                { path: '/demo/cloud-onboarding-agent',   title: 'Cloud Onboarding Validation',    desc: 'Reads real Terraform from GitHub, runs 12 IDA checks, AI remediates failures',    color: 'from-humana-teal to-[#006677]',   badge: 'UC #6',  domain: 'Cloud Eng',        icon: Activity  },
+                { path: '/demo/ida-workflow-agent',       title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why analysis and GitHub workflow',         color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
+                { path: '/demo/dependency-risk-agent',    title: 'Dependency Risk Management',     desc: 'Scans real GitHub repos for CVEs, AI risk analysis, creates fix PR automatically', color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', domain: 'Automation Eng',   icon: Shield    },
+              ].map(demo => (
+                <Link key={demo.path} to={demo.path} className="group">
+                  <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
+                      <span className="text-xs text-white/50">{demo.domain}</span>
+                    </div>
+                    <demo.icon size={22} className="text-white/70 mb-2" />
+                    <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
+                    <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
+                    <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
+                      Launch <ChevronRight size={12} />
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </section>
