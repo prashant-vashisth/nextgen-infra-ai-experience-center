@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import HumanaHeader from './components/HumanaHeader'
-import PresenterMode from './components/PresenterMode'
 import DemoAgenda from './components/DemoAgenda'
 import Home from './pages/Home'
 import Catalog from './pages/Catalog'
@@ -16,50 +14,30 @@ import DependencyRiskAgent from './pages/DependencyRiskAgent'
 import CVITWorkflowAgent from './pages/CVITWorkflowAgent'
 
 function AppContent() {
-  const [presenterMode, setPresenterMode] = useState(false)
-  const [scenario, setScenario] = useState(null)
   const location = useLocation()
-
   const isDemo = location.pathname.startsWith('/demo')
-
-  useEffect(() => {
-    const handleKey = (e) => {
-      if (e.key === 'Escape') setPresenterMode(false)
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [])
 
   return (
     <div className="min-h-screen bg-humana-light font-sans">
-      <HumanaHeader
-        presenterMode={presenterMode}
-        onTogglePresenter={() => setPresenterMode(p => !p)}
-      />
+      <HumanaHeader />
 
       {isDemo && <DemoAgenda />}
 
-      <main className={`pt-14 transition-all duration-300 ${isDemo ? 'pl-52' : ''} ${presenterMode ? 'pb-16' : ''}`}>
+      <main className={`pt-14 transition-all duration-300 ${isDemo ? 'pl-52' : ''}`}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/catalog" element={<Catalog />} />
-          {/* Original 4 demos */}
-          <Route path="/demo/aks-vulnerability-agent"  element={<AKSVulnerability scenario={scenario} />} />
-          <Route path="/demo/ida-workflow-agent"       element={<IDAWorkflowAgent scenario={scenario} />} />
-          <Route path="/demo/batch-health-analyzer"    element={<BatchHealthAnalyzer scenario={scenario} />} />
-          <Route path="/demo/rca-cmdb-agent"           element={<RCAandCMDB scenario={scenario} />} />
-          {/* New 4 demos — one per core domain */}
-          <Route path="/demo/event-management-agent"   element={<EventManagementAgent scenario={scenario} />} />
-          <Route path="/demo/finops-cost-agent"        element={<FinOpsCostAgent />} />
-          <Route path="/demo/cloud-onboarding-agent"   element={<CloudOnboardingAgent />} />
-          <Route path="/demo/dependency-risk-agent"    element={<DependencyRiskAgent />} />
-          <Route path="/demo/cvit-workflow"            element={<CVITWorkflowAgent />} />
+          <Route path="/"                                element={<Home />} />
+          <Route path="/catalog"                         element={<Catalog />} />
+          <Route path="/demo/aks-vulnerability-agent"    element={<AKSVulnerability />} />
+          <Route path="/demo/ida-workflow-agent"         element={<IDAWorkflowAgent />} />
+          <Route path="/demo/batch-health-analyzer"      element={<BatchHealthAnalyzer />} />
+          <Route path="/demo/rca-cmdb-agent"             element={<RCAandCMDB />} />
+          <Route path="/demo/event-management-agent"     element={<EventManagementAgent />} />
+          <Route path="/demo/finops-cost-agent"          element={<FinOpsCostAgent />} />
+          <Route path="/demo/cloud-onboarding-agent"     element={<CloudOnboardingAgent />} />
+          <Route path="/demo/dependency-risk-agent"      element={<DependencyRiskAgent />} />
+          <Route path="/demo/cvit-workflow"              element={<CVITWorkflowAgent />} />
         </Routes>
       </main>
-
-      {presenterMode && (
-        <PresenterMode onScenario={(s) => { setScenario(s); setTimeout(() => setScenario(null), 100) }} />
-      )}
     </div>
   )
 }

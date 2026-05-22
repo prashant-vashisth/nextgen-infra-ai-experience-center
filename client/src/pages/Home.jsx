@@ -303,33 +303,72 @@ function UseCaseCard({ uc, index }) {
   )
 }
 
+// ─── Demo definitions per tower ───────────────────────────────────────────────
+
+const IT_OPS_DEMOS = [
+  { path: '/demo/event-management-agent', title: 'Event Management & Self-Heal', desc: 'Multi-source alert correlation → AI deduplication → actionable incidents → auto-remediation', color: 'from-amber-700 to-amber-900',    badge: 'UC #22', subcategory: 'TOC / AOC',       icon: Activity  },
+  { path: '/demo/batch-health-analyzer',  title: 'Batch Health Analyzer',        desc: 'Unified NOC across Control-M, Mainframe, Toad/Oracle, Informatica ETL and Nabu pipelines',   color: 'from-emerald-700 to-emerald-900',badge: 'UC #25', subcategory: 'IT Infra Ops',    icon: Server    },
+  { path: '/demo/rca-cmdb-agent',         title: 'RCA Agent + CMDB Enrichment',  desc: 'AI-powered problem RCA with 5-Why analysis and continuous CMDB data quality improvement',      color: 'from-purple-700 to-purple-900',  badge: 'UC #41', subcategory: 'Enterprise ITSM', icon: Activity  },
+  { path: '/demo/finops-cost-agent',      title: 'FinOps Cost Anomaly Agent',    desc: 'Azure spend intelligence: real-time anomaly detection with AI-driven cost optimization',       color: 'from-orange-700 to-orange-900',  badge: 'UC #35', subcategory: 'FinOps',          icon: Zap       },
+]
+
+const PLATFORM_DEMOS = [
+  { path: '/demo/cvit-workflow',          title: 'CVIT Multi-Agent Orchestrator', desc: '10-step agentic workflow: LangGraph + Groq tool calling · Azure · ServiceNow · GitHub',       color: 'from-red-700 to-red-900',         badge: 'UC #36', subcategory: 'Security Eng',    icon: Shield    },
+  { path: '/demo/cloud-onboarding-agent', title: 'Cloud Onboarding Validation',   desc: 'Reads real Terraform from GitHub, runs 12 IDA compliance checks, AI remediates failures',     color: 'from-humana-teal to-[#006677]',   badge: 'UC #6',  subcategory: 'Cloud Eng',       icon: Activity  },
+  { path: '/demo/ida-workflow-agent',     title: 'IDA Workflow Assist Agent',     desc: 'Real-time Terraform failure RCA with 5-Why analysis, remediation checklist and GitHub rerun',   color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  subcategory: 'Automation Eng',  icon: GitBranch },
+  { path: '/demo/dependency-risk-agent',  title: 'Dependency Risk Management',    desc: 'Scans real GitHub repos for CVEs, AI risk analysis, auto-creates remediation PR',             color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', subcategory: 'Automation Eng',  icon: Shield    },
+]
+
+// Sub-category IDs that belong to each tower (for UC filtering)
+const IT_OPS_LEAF_IDS   = new Set(['incident-response','toc','aoc','enterprise-itsm','finops','iss','cape','dynatrace','splunk','datapowr','apigee','graphql'])
+const PLATFORM_LEAF_IDS = new Set(['compute-storage','network-engineering','security-engineering','cloud-engineering','data-engineering','automation-engineering'])
+
+function DemoCard({ demo }) {
+  const Icon = demo.icon
+  return (
+    <Link to={demo.path} className="group">
+      <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-md hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
+          <span className="text-xs text-white/50">{demo.subcategory}</span>
+        </div>
+        <Icon size={20} className="text-white/70 mb-2" />
+        <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
+        <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
+        <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
+          Launch Demo <ChevronRight size={12} />
+        </div>
+      </div>
+    </Link>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const [activeLeaf, setActiveLeaf] = useState(null)
-  const catalogRef = useRef(null)
 
-  const activeLabel = activeLeaf
-    ? ALL_LEAVES.find(l => l.id === activeLeaf)?.label
-    : null
-
-  const filtered = activeLeaf
-    ? USE_CASES.filter(uc => uc.subcategories.includes(activeLeaf))
-    : USE_CASES
-
-  const handleSelect = (id) => {
-    setActiveLeaf(id)
-    if (id) setTimeout(() => catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
-  }
+  const handleSelect = (id) => setActiveLeaf(prev => prev === id ? null : id)
 
   const [itOpsTower, platformTower] = TOWERS
+
+  // UCs for each tower (a UC belongs if any of its subcategories falls in that tower's set)
+  const itOpsUCs     = USE_CASES.filter(uc => uc.subcategories.some(s => IT_OPS_LEAF_IDS.has(s)))
+  const platformUCs  = USE_CASES.filter(uc => uc.subcategories.some(s => PLATFORM_LEAF_IDS.has(s)))
+
+  // Within-tower filter: only apply activeLeaf if it belongs to that tower
+  const activeInItOps    = activeLeaf && IT_OPS_LEAF_IDS.has(activeLeaf)
+  const activeInPlatform = activeLeaf && PLATFORM_LEAF_IDS.has(activeLeaf)
+
+  const filteredItOps    = activeInItOps    ? itOpsUCs.filter(uc => uc.subcategories.includes(activeLeaf))    : itOpsUCs
+  const filteredPlatform = activeInPlatform ? platformUCs.filter(uc => uc.subcategories.includes(activeLeaf)) : platformUCs
 
   return (
     <div className="min-h-screen bg-humana-light">
 
       {/* ── Page header ── */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-humana-navy">Humana AI Operations Hub</h1>
             <p className="text-sm text-gray-500 mt-0.5">AI-powered automation across infrastructure towers</p>
@@ -344,135 +383,156 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Towers in Scope ── */}
-      <section className="px-6 pt-6 pb-2 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-humana-navy flex items-center gap-2">
-            <Building2 size={16} className="text-humana-teal" />
-            Towers in Scope
-            <span className="text-xs font-normal text-gray-400">— click a sub-category to filter use cases</span>
-          </h2>
-          {activeLeaf && (
-            <button
-              onClick={() => setActiveLeaf(null)}
-              className="text-xs text-gray-500 hover:text-humana-navy flex items-center gap-1 border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-white transition-colors"
-            >
-              ✕ Clear filter
-            </button>
+      <div className="px-6 py-6 max-w-7xl mx-auto flex flex-col gap-8">
+
+        {/* ── IT Operations & Infrastructure ── */}
+        <TowerSection
+          tower={itOpsTower}
+          demos={IT_OPS_DEMOS}
+          ucs={filteredItOps}
+          totalUCs={itOpsUCs.length}
+          activeLeaf={activeLeaf}
+          onSelect={handleSelect}
+          activeInThisTower={activeInItOps}
+        />
+
+        {/* ── Platform Engineering ── */}
+        <TowerSection
+          tower={platformTower}
+          demos={PLATFORM_DEMOS}
+          ucs={filteredPlatform}
+          totalUCs={platformUCs.length}
+          activeLeaf={activeLeaf}
+          onSelect={handleSelect}
+          activeInThisTower={activeInPlatform}
+        />
+
+      </div>
+    </div>
+  )
+}
+
+// ─── TowerSection — demos + sub-category filter + UCs ─────────────────────────
+
+function TowerSection({ tower, demos, ucs, totalUCs, activeLeaf, onSelect, activeInThisTower }) {
+  const TowerIcon = tower.icon
+  const isGrouped = !!tower.groups
+
+  const activeLabel = activeLeaf && activeInThisTower
+    ? ALL_LEAVES.find(l => l.id === activeLeaf)?.label
+    : null
+
+  return (
+    <div className="card-humana overflow-hidden">
+
+      {/* Tower header */}
+      <div className={`bg-gradient-to-r ${tower.color} px-5 py-4 flex items-center gap-3`}>
+        <div className="p-2 rounded-lg bg-white/15">
+          <TowerIcon size={22} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-white font-bold text-lg leading-tight">{tower.label}</h2>
+          <p className="text-white/60 text-xs mt-0.5">
+            {demos.length} live demos · {totalUCs} use cases
+          </p>
+        </div>
+        {activeInThisTower && (
+          <button
+            onClick={() => onSelect(activeLeaf)}
+            className="text-xs text-white/70 hover:text-white border border-white/30 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            ✕ Clear filter
+          </button>
+        )}
+      </div>
+
+      <div className="p-5 flex flex-col gap-6">
+
+        {/* Live Demos */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Zap size={13} className="text-humana-green" />
+            <span className="text-xs font-bold text-humana-navy uppercase tracking-wide">Live Demos</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {demos.map(demo => <DemoCard key={demo.path} demo={demo} />)}
+          </div>
+        </div>
+
+        {/* Sub-category filter */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Activity size={13} className="text-humana-teal" />
+            <span className="text-xs font-bold text-humana-navy uppercase tracking-wide">
+              {activeLabel ? `Filtered by: ${activeLabel}` : 'Use Cases by Sub-Category'}
+            </span>
+            <span className="text-xs text-gray-400">— click to filter</span>
+          </div>
+
+          {/* Grouped (IT Ops) or flat (Platform Eng) */}
+          {isGrouped ? (
+            <div className="flex flex-col gap-4">
+              {tower.groups.map(group => (
+                <div key={group.id}>
+                  <div className="text-xs font-bold text-humana-navy uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-gray-200" />{group.label}<span className="h-px flex-1 bg-gray-200" />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.children.map(child => {
+                      const count = USE_CASES.filter(uc => uc.subcategories.includes(child.id)).length
+                      const isActive = activeLeaf === child.id
+                      return (
+                        <button key={child.id} onClick={() => onSelect(child.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+                            isActive ? 'bg-humana-green border-humana-green text-white shadow-sm' : 'bg-gray-50 border-transparent hover:border-gray-300 hover:bg-white text-gray-700'
+                          }`}>
+                          {child.label}
+                          <span className={`text-xs font-bold px-1 rounded ${isActive ? 'bg-white/25 text-white' : 'text-humana-green'}`}>{count}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {tower.subcategories.map(sc => {
+                const count = USE_CASES.filter(uc => uc.subcategories.includes(sc.id)).length
+                const isActive = activeLeaf === sc.id
+                return (
+                  <button key={sc.id} onClick={() => onSelect(sc.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+                      isActive ? 'bg-humana-green border-humana-green text-white shadow-sm' : 'bg-gray-50 border-transparent hover:border-gray-300 hover:bg-white text-gray-700'
+                    }`}>
+                    {sc.label}
+                    <span className={`text-xs font-bold px-1 rounded ${isActive ? 'bg-white/25 text-white' : 'text-humana-green'}`}>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
           )}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-          <ITOpsTowerPanel    tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={platformTower} activeLeaf={activeLeaf} onSelect={handleSelect} />
-        </div>
-      </section>
 
-      {/* ── Use Case Catalog ── */}
-      <section ref={catalogRef} className="px-6 pt-6 pb-4 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-humana-navy flex items-center gap-2">
-            <Activity size={16} className="text-humana-teal" />
-            {activeLabel
-              ? <><span>{activeLabel}</span><span className="text-sm text-gray-400 font-normal ml-1">— {filtered.length} use cases</span></>
-              : <>Use Case Catalog <span className="text-sm text-gray-400 font-normal">({filtered.length})</span></>
-            }
-          </h2>
-          <Link to="/catalog" className="text-sm text-humana-green font-semibold flex items-center gap-1 hover:underline">
-            Full Catalog <ExternalLink size={12} />
-          </Link>
+        {/* Use cases */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-humana-navy uppercase tracking-wide flex items-center gap-2">
+              <Shield size={13} className="text-gray-400" />
+              {activeLabel ? `${activeLabel} — ${ucs.length} use cases` : `All Use Cases (${ucs.length})`}
+            </span>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={activeLeaf || 'all-' + tower.id}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {ucs.map((uc, i) => <UseCaseCard key={uc.id} uc={uc} index={i} />)}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeLeaf || 'all'}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-          >
-            {filtered.map((uc, i) => (
-              <UseCaseCard key={uc.id} uc={uc} index={i} />
-            ))}
-          </motion.div>
-        </AnimatePresence>
-      </section>
-
-      {/* ── Live Interactive Demos ── */}
-      <section className="bg-humana-navy mt-6 px-6 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 mb-6">
-            <Zap size={16} className="text-humana-green" />
-            <h2 className="text-base font-bold text-white">Live Interactive Demos</h2>
-            <span className="text-white/40 text-xs">— 9 fully wired demos · real AI · real APIs · click to launch</span>
-          </div>
-
-          {/* IT Operations & Infrastructure */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">IT Operations & Infrastructure</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { path: '/demo/event-management-agent', title: 'Event Management & Self-Heal', desc: 'AIOps: 2,400 alerts/day → AI deduplication → 3 incidents → auto-remediation',  color: 'from-amber-700 to-amber-900',   badge: 'UC #22', domain: 'IT Operations', icon: Activity  },
-                { path: '/demo/batch-health-analyzer',  title: 'Batch Health Analyzer',        desc: 'Unified NOC for Control-M, Mainframe, Toad, Informatica & Nabu pipelines',     color: 'from-emerald-700 to-emerald-900',badge: 'UC #25', domain: 'IT Infra Ops',  icon: Server    },
-                { path: '/demo/rca-cmdb-agent',         title: 'RCA Agent + CMDB Enrichment',  desc: 'Problem ticket RCA with multi-source correlation and CMDB health dashboard',    color: 'from-purple-700 to-purple-900', badge: 'UC #41', domain: 'IT Infra Ops',  icon: Activity  },
-                { path: '/demo/finops-cost-agent',      title: 'FinOps Cost Anomaly Agent',    desc: 'Azure cost intelligence: detect spend anomalies, forecast overages, right-size', color: 'from-orange-700 to-orange-900', badge: 'UC #35', domain: 'FinOps',        icon: Zap       },
-              ].map(demo => (
-                <Link key={demo.path} to={demo.path} className="group">
-                  <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
-                      <span className="text-xs text-white/50">{demo.domain}</span>
-                    </div>
-                    <demo.icon size={22} className="text-white/70 mb-2" />
-                    <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
-                    <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
-                      Launch <ChevronRight size={12} />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Platform Engineering */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">Platform Engineering</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { path: '/demo/cvit-workflow',             title: 'CVIT Multi-Agent Orchestrator',  desc: '10-step agentic workflow: LangGraph + Groq tool calling + real Azure/ServiceNow/GitHub', color: 'from-red-700 to-red-900', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
-                { path: '/demo/cloud-onboarding-agent',   title: 'Cloud Onboarding Validation',    desc: 'Reads real Terraform from GitHub, runs 12 IDA checks, AI remediates failures',    color: 'from-humana-teal to-[#006677]',   badge: 'UC #6',  domain: 'Cloud Eng',        icon: Activity  },
-                { path: '/demo/ida-workflow-agent',       title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why analysis and GitHub workflow',         color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
-                { path: '/demo/dependency-risk-agent',    title: 'Dependency Risk Management',     desc: 'Scans real GitHub repos for CVEs, AI risk analysis, creates fix PR automatically', color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', domain: 'Automation Eng',   icon: Shield    },
-              ].map(demo => (
-                <Link key={demo.path} to={demo.path} className="group">
-                  <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
-                      <span className="text-xs text-white/50">{demo.domain}</span>
-                    </div>
-                    <demo.icon size={22} className="text-white/70 mb-2" />
-                    <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
-                    <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
-                      Launch <ChevronRight size={12} />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
+      </div>
     </div>
   )
 }

@@ -1,31 +1,40 @@
-import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, Clock, ChevronRight, Home, BookOpen, Layers } from 'lucide-react'
+import { Home, Layers, ChevronRight } from 'lucide-react'
 
 const NAV_LINKS = [
   { path: '/', label: 'Dashboard', icon: Home },
-  { path: '/catalog', label: 'Use Case Catalog', icon: BookOpen },
-  { path: '/demo/aks-vulnerability-agent', label: 'AKS Agent', icon: Layers },
-  { path: '/demo/ida-workflow-agent', label: 'IDA Agent', icon: Layers },
-  { path: '/demo/batch-health-analyzer', label: 'Batch Analyzer', icon: Layers },
-  { path: '/demo/rca-cmdb-agent', label: 'RCA + CMDB', icon: Layers },
+  { path: '/demo/event-management-agent',  label: 'Event Management'  },
+  { path: '/demo/batch-health-analyzer',   label: 'Batch Analyzer'    },
+  { path: '/demo/rca-cmdb-agent',          label: 'RCA + CMDB'        },
+  { path: '/demo/finops-cost-agent',       label: 'FinOps'            },
+  { path: '/demo/cvit-workflow',           label: 'CVIT Agent'        },
+  { path: '/demo/cloud-onboarding-agent',  label: 'Cloud Onboarding'  },
+  { path: '/demo/ida-workflow-agent',      label: 'IDA Agent'         },
+  { path: '/demo/dependency-risk-agent',   label: 'Dependency Risk'   },
 ]
 
-export default function HumanaHeader({ presenterMode, onTogglePresenter }) {
-  const [time, setTime] = useState(new Date())
+const PAGE_LABELS = {
+  '/': 'Dashboard',
+  '/demo/event-management-agent':  'Event Management & Self-Heal',
+  '/demo/batch-health-analyzer':   'Batch Health Analyzer',
+  '/demo/rca-cmdb-agent':          'RCA + CMDB',
+  '/demo/finops-cost-agent':       'FinOps Cost Agent',
+  '/demo/cvit-workflow':           'CVIT Orchestrator',
+  '/demo/cloud-onboarding-agent':  'Cloud Onboarding Validation',
+  '/demo/ida-workflow-agent':      'IDA Workflow Agent',
+  '/demo/dependency-risk-agent':   'Dependency Risk Management',
+  '/demo/aks-vulnerability-agent': 'AKS Vulnerability Agent',
+}
+
+export default function HumanaHeader() {
   const location = useLocation()
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const pathLabel = NAV_LINKS.find(n => n.path === location.pathname)?.label
+  const pathLabel = PAGE_LABELS[location.pathname]
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-humana-navy shadow-lg">
       <div className="flex items-center justify-between px-4 h-14">
-        {/* Left: Logo */}
+
+        {/* Logo */}
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex items-center">
@@ -41,9 +50,9 @@ export default function HumanaHeader({ presenterMode, onTogglePresenter }) {
           </span>
         </div>
 
-        {/* Center: Nav */}
-        <nav className="hidden xl:flex items-center gap-1">
-          {NAV_LINKS.slice(0, 6).map(link => (
+        {/* Nav */}
+        <nav className="hidden xl:flex items-center gap-0.5">
+          {NAV_LINKS.map(link => (
             <Link
               key={link.path}
               to={link.path}
@@ -58,35 +67,16 @@ export default function HumanaHeader({ presenterMode, onTogglePresenter }) {
           ))}
         </nav>
 
-        {/* Right: Status + clock */}
-        <div className="flex items-center gap-3">
-          <div className="badge-live text-xs">
-            <span className="live-dot" />
-            LIVE DEMO
-          </div>
-          <div className="flex items-center gap-1.5 text-white/70 text-xs font-mono">
-            <Clock size={12} />
-            {time.toLocaleTimeString()}
-          </div>
-          <button
-            onClick={onTogglePresenter}
-            className={`text-xs px-2.5 py-1 rounded font-semibold transition-colors ${
-              presenterMode
-                ? 'bg-amber-500 text-white'
-                : 'bg-white/10 text-white/70 hover:bg-white/20'
-            }`}
-          >
-            {presenterMode ? '🎤 Presenter' : 'Presenter Mode'}
-          </button>
-        </div>
+        {/* Right — intentionally empty */}
+        <div />
       </div>
 
       {/* Breadcrumb */}
-      {location.pathname !== '/' && (
+      {location.pathname !== '/' && pathLabel && (
         <div className="bg-humana-navy/80 border-t border-white/10 px-4 py-1 flex items-center gap-1 text-xs text-white/50">
-          <Link to="/" className="hover:text-white/80">Home</Link>
+          <Link to="/" className="hover:text-white/80">Dashboard</Link>
           <ChevronRight size={10} />
-          <span className="text-white/70">{pathLabel || location.pathname}</span>
+          <span className="text-white/70">{pathLabel}</span>
         </div>
       )}
     </header>
