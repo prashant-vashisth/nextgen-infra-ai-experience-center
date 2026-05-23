@@ -1,54 +1,220 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Shield, CheckCircle2, Clock, AlertTriangle, Loader2, Play, Zap,
-  GitPullRequest, FileText, Eye, ThumbsUp, ThumbsDown, Terminal,
-  ChevronRight, Activity, Users, Database, Lock,
+  Shield, CheckCircle2, Loader2, Play, Zap, GitPullRequest, FileText,
+  ThumbsUp, ThumbsDown, ChevronRight, Activity, Users, Database,
+  AlertTriangle, ExternalLink, GitBranch, Server, Bell, RefreshCw,
+  Package, Lock, ArrowRight,
 } from 'lucide-react'
 import LiveIndicator from '../components/LiveIndicator'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
-const STEPS = [
-  { index: 1, id: 'scan',             label: 'Detect & Classify CVITs',       agent: 'ScannerAgent',      icon: Shield   },
-  { index: 2, id: 'collect',          label: 'Smart Requirement Collection',  agent: 'RequirementAgent',  icon: Database },
-  { index: 3, id: 'enrich',           label: 'Auto-Enrichment',               agent: 'EnrichmentAgent',   icon: Zap      },
-  { index: 4, id: 'awaiting_approval',label: 'Approval Workflow',             agent: 'ApprovalAgent',     icon: Users,   human: true },
-  { index: 5, id: 'handover',         label: 'Handover to Human Expert',      agent: 'HandoverAgent',     icon: Users,   human: true },
-  { index: 6, id: 'work_package',     label: 'Work Package Creation',         agent: 'WorkPackageAgent',  icon: FileText },
-  { index: 7, id: 'awaiting_execution',label:'Handover to DevOps',            agent: 'ExecutionAgent',    icon: Users,   human: true },
-  { index: 8, id: 'monitor',          label: 'Agent Monitors Progress',       agent: 'MonitorAgent',      icon: Activity },
-  { index: 9, id: 'close',            label: 'Smart Closure & Validation',    agent: 'ClosureAgent',      icon: CheckCircle2 },
-  { index: 10,id: 'kb_update',        label: 'Knowledge Base Update',         agent: 'KBAgent',           icon: FileText },
+const WORKFLOW_STEPS = [
+  { index: 1,  id: 'scan',               label: 'Detect & Classify CVITs',      agent: 'ScannerAgent',     icon: Shield   },
+  { index: 2,  id: 'collect',            label: 'Requirement Collection',        agent: 'RequirementAgent', icon: Database },
+  { index: 3,  id: 'enrich',             label: 'Auto-Enrichment (NVD)',         agent: 'EnrichmentAgent',  icon: Zap      },
+  { index: 4,  id: 'awaiting_approval',  label: 'Approval Workflow',             agent: 'ApprovalAgent',    icon: Users,   human: true },
+  { index: 5,  id: 'handover',           label: 'Handover to Expert',            agent: 'HandoverAgent',    icon: Users,   human: true },
+  { index: 6,  id: 'work_package',       label: 'Work Package + Fix PR',         agent: 'WorkPackageAgent', icon: FileText },
+  { index: 7,  id: 'awaiting_execution', label: 'Handover to DevOps',            agent: 'ExecutionAgent',   icon: Users,   human: true },
+  { index: 8,  id: 'monitor',            label: 'Agent Monitors AKS Deploy',     agent: 'MonitorAgent',     icon: Activity },
+  { index: 9,  id: 'close',             label: 'Close SNOW + Validate',          agent: 'ClosureAgent',     icon: CheckCircle2 },
+  { index: 10, id: 'kb_update',          label: 'Knowledge Base Update',         agent: 'KBAgent',          icon: FileText },
 ]
 
 const SEV_BADGE = { CRITICAL: 'bg-red-600 text-white', HIGH: 'bg-orange-500 text-white', MEDIUM: 'bg-amber-500 text-white', LOW: 'bg-blue-500 text-white' }
-const LOG_TYPE_COLOR = { thinking: 'text-gray-400', tool_call: 'text-humana-teal', tool_result: 'text-humana-green', action: 'text-blue-600', complete: 'text-gray-800', progress: 'text-amber-600', waiting: 'text-amber-500', created: 'text-humana-green', summary: 'text-gray-800', validated: 'text-humana-green' }
+const LOG_COLOR = { thinking: 'text-gray-400', tool_call: 'text-humana-teal', tool_result: 'text-humana-green', action: 'text-blue-600', complete: 'text-gray-800', progress: 'text-amber-600', waiting: 'text-amber-500', created: 'text-humana-green', summary: 'text-gray-800', validated: 'text-humana-green', error: 'text-red-600' }
+const AGENT_COLOR = { ScannerAgent: 'text-red-600', EnrichmentAgent: 'text-amber-600', WorkPackageAgent: 'text-purple-600', MonitorAgent: 'text-blue-600', KBAgent: 'text-humana-green' }
 
-const CLUSTERS = ['humana-prod-aks-eastus', 'humana-dev-aks-centralus', 'humana-nonprod-aks-westus']
+// ─── Stage Badge ──────────────────────────────────────────────────────────────
+function StageBadge({ n, label, active, done }) {
+  return (
+    <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold border transition-all ${
+      done   ? 'bg-humana-green/10 border-humana-green/40 text-humana-green' :
+      active ? 'bg-humana-navy/10  border-humana-navy/30  text-humana-navy' :
+               'bg-gray-50 border-gray-200 text-gray-400'
+    }`}>
+      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-black ${done ? 'bg-humana-green text-white' : active ? 'bg-humana-navy text-white' : 'bg-gray-200 text-gray-500'}`}>
+        {done ? '✓' : n}
+      </span>
+      {label}
+    </div>
+  )
+}
 
+// ─── CVE Table ────────────────────────────────────────────────────────────────
+function CveTable({ cves }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="bg-gray-50 text-gray-500 font-semibold text-left">
+            <th className="px-3 py-2">Package</th>
+            <th className="px-3 py-2">CVE</th>
+            <th className="px-3 py-2">CVSS</th>
+            <th className="px-3 py-2">Severity</th>
+            <th className="px-3 py-2">Impact</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {cves.map(c => (
+            <tr key={c.cve} className="hover:bg-gray-50">
+              <td className="px-3 py-2 font-mono font-semibold text-humana-navy">{c.pkg}</td>
+              <td className="px-3 py-2 font-mono text-humana-teal">{c.cve}</td>
+              <td className="px-3 py-2 font-bold text-red-600">{c.cvss}</td>
+              <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${SEV_BADGE[c.severity]}`}>{c.severity}</span></td>
+              <td className="px-3 py-2 text-gray-600">{c.desc}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function CVITWorkflowAgent() {
-  const [workflowId, setWorkflowId] = useState(null)
+  // ── Stage 1 state
+  const [packages, setPackages]   = useState(null)
+  const [loadingPkgs, setLoadingPkgs] = useState(false)
+  const [pods, setPods]           = useState([])
+  const [injecting, setInjecting] = useState(false)
+  const [injected, setInjected]   = useState(null)   // { pr, cves }
+  const [deploying, setDeploying] = useState(false)
+  const [deployed, setDeployed]   = useState(null)   // { merged, run }
+  const [actionsRuns, setActionsRuns] = useState([])
+
+  // ── Stage 2 state
+  const [creatingP1, setCreatingP1] = useState(false)
+  const [p1Incident, setP1Incident] = useState(null)
+  const [polling, setPolling]       = useState(false)
+  const [pollCount, setPollCount]   = useState(0)
+
+  // ── Stage 3 (CVIT workflow) state
+  const [workflowId, setWorkflowId]   = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
-  const [stepStates, setStepStates] = useState({})
-  const [logs, setLogs] = useState([])
-  const [findings, setFindings] = useState([])
-  const [selectedCluster, setSelectedCluster] = useState(CLUSTERS[0])
+  const [stepStates, setStepStates]   = useState({})
+  const [logs, setLogs]               = useState([])
+  const [findings, setFindings]       = useState([])
   const [humanPending, setHumanPending] = useState(null)
-  const [progress, setProgress] = useState(0)
-  const [artifacts, setArtifacts] = useState({})
-  const [isRunning, setIsRunning] = useState(false)
+  const [progress, setProgress]       = useState(0)
+  const [artifacts, setArtifacts]     = useState({})
+  const [isRunning, setIsRunning]     = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [timing, setTiming] = useState({ start: null, end: null })
   const [approverName, setApproverName] = useState('security-manager')
-  const esRef = useRef(null)
-  const logEndRef = useRef(null)
 
+  const esRef      = useRef(null)
+  const pollEsRef  = useRef(null)
+  const logEndRef  = useRef(null)
+  const stage3Ref  = useRef(null)
+
+  const stage = isRunning || workflowId ? 3 : p1Incident ? 2 : injected ? 2 : 1
+  const stage1Done = !!deployed
+  const stage2Done = !!workflowId
+  const stage3Done = isCompleted
+
+  // Auto-scroll logs
+  useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [logs])
+
+  // Load initial package state
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [logs])
+    setLoadingPkgs(true)
+    fetch(`${API_URL}/api/cvit/app-packages`)
+      .then(r => r.json()).then(d => setPackages(d.pkg)).catch(() => {})
+      .finally(() => setLoadingPkgs(false))
 
-  const connectSSE = (wfId) => {
+    fetch(`${API_URL}/api/cvit/aks-pods?state=clean`)
+      .then(r => r.json()).then(d => setPods(d.pods || [])).catch(() => {})
+
+    fetch(`${API_URL}/api/cvit/actions-status`)
+      .then(r => r.json()).then(d => setActionsRuns(d.runs || [])).catch(() => {})
+  }, [])
+
+  // Poll actions status after deploy
+  useEffect(() => {
+    if (!deployed) return
+    const iv = setInterval(() => {
+      fetch(`${API_URL}/api/cvit/actions-status`)
+        .then(r => r.json()).then(d => setActionsRuns(d.runs || [])).catch(() => {})
+    }, 8000)
+    return () => clearInterval(iv)
+  }, [deployed])
+
+  // ── Inject vulnerability ───────────────────────────────────────────────────
+  const injectVulnerability = async () => {
+    setInjecting(true)
+    try {
+      const r = await fetch(`${API_URL}/api/cvit/inject-vulnerability`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      const d = await r.json()
+      setInjected(d)
+      // Refresh packages to show vulnerable state
+      fetch(`${API_URL}/api/cvit/app-packages`).then(r => r.json()).then(d => setPackages(d.pkg)).catch(() => {})
+    } finally { setInjecting(false) }
+  }
+
+  // ── Deploy to AKS ─────────────────────────────────────────────────────────
+  const deployVulnerable = async () => {
+    setDeploying(true)
+    fetch(`${API_URL}/api/cvit/aks-pods?state=deploying`).then(r => r.json()).then(d => setPods(d.pods || [])).catch(() => {})
+    try {
+      const r = await fetch(`${API_URL}/api/cvit/deploy-vulnerable`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prNumber: injected?.pr?.number, branch: injected?.pr?.branch }),
+      })
+      const d = await r.json()
+      setDeployed(d)
+      // After short delay show pods running (vulnerable)
+      setTimeout(() => {
+        fetch(`${API_URL}/api/cvit/aks-pods?state=vulnerable`).then(r => r.json()).then(d => setPods(d.pods || [])).catch(() => {})
+      }, 3000)
+    } finally { setDeploying(false) }
+  }
+
+  // ── Create P1 Incident ────────────────────────────────────────────────────
+  const createP1 = async () => {
+    setCreatingP1(true)
+    try {
+      const r = await fetch(`${API_URL}/api/cvit/create-p1-incident`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cves: injected?.cves || [], cluster: 'humana-prod-aks', prUrl: injected?.pr?.url }),
+      })
+      const d = await r.json()
+      setP1Incident(d.incident)
+
+      // Start SNOW polling immediately
+      startPolling(d.incident)
+    } finally { setCreatingP1(false) }
+  }
+
+  // ── Start SNOW polling ────────────────────────────────────────────────────
+  const startPolling = async (incident) => {
+    setPolling(true)
+    setPollCount(0)
+
+    await fetch(`${API_URL}/api/cvit/start-snow-polling`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incidentSysId: incident.sys_id, incidentNumber: incident.number, cves: injected?.cves || [] }),
+    })
+
+    // Connect SSE for polling updates
+    if (pollEsRef.current) pollEsRef.current.close()
+    const es = new EventSource(`${API_URL}/api/cvit/poll-stream/${incident.sys_id}`)
+    pollEsRef.current = es
+
+    es.addEventListener('poll', () => setPollCount(n => n + 1))
+    es.addEventListener('workflow_started', (e) => {
+      const d = JSON.parse(e.data)
+      setPolling(false)
+      es.close()
+      connectWorkflowSSE(d.workflowId)
+      setWorkflowId(d.workflowId)
+      setTimeout(() => stage3Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)
+    })
+  }
+
+  // ── Connect workflow SSE ──────────────────────────────────────────────────
+  const connectWorkflowSSE = (wfId) => {
     if (esRef.current) esRef.current.close()
     const es = new EventSource(`${API_URL}/api/cvit/stream/${wfId}`)
     esRef.current = es
@@ -59,41 +225,24 @@ export default function CVITWorkflowAgent() {
           setCurrentStep(data.index)
           setStepStates(prev => ({ ...prev, [data.step]: 'active' }))
           if (data.index > 1) {
-            const prevStep = STEPS[data.index - 2]
-            if (prevStep) setStepStates(prev => ({ ...prev, [prevStep.id]: 'done' }))
+            const prev = WORKFLOW_STEPS[data.index - 2]
+            if (prev) setStepStates(p => ({ ...p, [prev.id]: 'done' }))
           }
           break
-        case 'log':
-          setLogs(prev => [...prev.slice(-199), data])
-          break
-        case 'human_required':
-          setHumanPending(data)
-          break
-        case 'approved':
-          setHumanPending(null)
-          setStepStates(prev => ({ ...prev, awaiting_approval: 'done' }))
-          break
-        case 'execution_confirmed':
-          setHumanPending(null)
-          setStepStates(prev => ({ ...prev, awaiting_execution: 'done' }))
-          break
-        case 'rejected':
-          setStepStates(prev => ({ ...prev, awaiting_approval: 'error' }))
-          setIsRunning(false)
-          break
-        case 'progress':
-          setProgress(data.pct || 0)
-          break
-        case 'work_package_ready':
-          setArtifacts(prev => ({ ...prev, incident: data.incident, pr: data.pr }))
-          break
+        case 'log':   setLogs(prev => [...prev.slice(-199), data]); break
+        case 'human_required': setHumanPending(data); break
+        case 'approved': setHumanPending(null); setStepStates(p => ({ ...p, awaiting_approval: 'done' })); break
+        case 'execution_confirmed': setHumanPending(null); setStepStates(p => ({ ...p, awaiting_execution: 'done' })); break
+        case 'rejected': setStepStates(p => ({ ...p, awaiting_approval: 'error' })); setIsRunning(false); break
+        case 'progress': setProgress(data.pct || 0); break
+        case 'work_package_ready': setArtifacts(prev => ({ ...prev, incident: data.incident, pr: data.pr })); break
         case 'state':
           if (data.findings?.length) setFindings(data.findings)
-          if (data.changeTicket) setArtifacts(prev => ({ ...prev, change: data.changeTicket }))
-          if (data.incidentTicket) setArtifacts(prev => ({ ...prev, incident: data.incidentTicket }))
-          if (data.githubPR) setArtifacts(prev => ({ ...prev, pr: data.githubPR }))
-          if (data.kbArticle) setArtifacts(prev => ({ ...prev, kb: data.kbArticle }))
-          if (data.step === 'completed') { setIsCompleted(true); setIsRunning(false); setTiming(t => ({ ...t, end: data.completedAt })) }
+          if (data.changeTicket)  setArtifacts(p => ({ ...p, change: data.changeTicket }))
+          if (data.incidentTicket) setArtifacts(p => ({ ...p, incident: data.incidentTicket }))
+          if (data.githubPR)      setArtifacts(p => ({ ...p, pr: data.githubPR }))
+          if (data.kbArticle)     setArtifacts(p => ({ ...p, kb: data.kbArticle }))
+          if (data.step === 'completed') { setIsCompleted(true); setIsRunning(false) }
           break
         case 'error':
           setLogs(prev => [...prev, { ts: new Date().toISOString(), agent: 'System', type: 'error', message: data.message }])
@@ -103,364 +252,535 @@ export default function CVITWorkflowAgent() {
       }
     }
 
-    ['step','log','human_required','approved','execution_confirmed','rejected','progress','work_package_ready','state','error','started'].forEach(evt => {
-      es.addEventListener(evt, (e) => { try { handle(evt, JSON.parse(e.data)) } catch { /* ignore */ } })
-    })
-
-    es.onerror = () => { /* reconnect handled by browser */ }
-  }
-
-  const startWorkflow = async () => {
-    setIsRunning(true)
-    setIsCompleted(false)
-    setLogs([])
-    setFindings([])
-    setStepStates({})
-    setProgress(0)
-    setArtifacts({})
-    setHumanPending(null)
-    setCurrentStep(0)
-    setTiming({ start: new Date().toISOString(), end: null })
-
-    const r = await fetch(`${API_URL}/api/cvit/start`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cluster: selectedCluster }),
-    })
-    const { workflowId: wfId } = await r.json()
-    setWorkflowId(wfId)
-    connectSSE(wfId)
+    ['step','log','human_required','approved','execution_confirmed','rejected','progress','work_package_ready','state','error','started']
+      .forEach(evt => es.addEventListener(evt, (e) => { try { handle(evt, JSON.parse(e.data)) } catch {} }))
+    es.addEventListener('started', () => setIsRunning(true))
   }
 
   const handleApprove = async () => {
-    await fetch(`${API_URL}/api/cvit/approve/${workflowId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approvedBy: approverName }),
-    })
+    await fetch(`${API_URL}/api/cvit/approve/${workflowId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approvedBy: approverName }) })
     setHumanPending(null)
   }
-
   const handleReject = async () => {
-    await fetch(`${API_URL}/api/cvit/reject/${workflowId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: 'Rejected during demo — risk too high' }),
-    })
-    setHumanPending(null)
-    setIsRunning(false)
+    await fetch(`${API_URL}/api/cvit/reject/${workflowId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'Rejected during demo' }) })
+    setHumanPending(null); setIsRunning(false)
   }
-
   const handleExecute = async () => {
-    await fetch(`${API_URL}/api/cvit/execute/${workflowId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmedBy: 'devops-engineer' }),
-    })
+    await fetch(`${API_URL}/api/cvit/execute/${workflowId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmedBy: 'devops-engineer' }) })
     setHumanPending(null)
   }
 
-  const elapsedSec = timing.start
-    ? Math.round((Date.now() - new Date(timing.start).getTime()) / 1000)
-    : 0
-  const completedSec = timing.end && timing.start
-    ? Math.round((new Date(timing.end) - new Date(timing.start)) / 1000)
-    : null
+  const latestRun = actionsRuns[0]
+  const vulnDeps = injected?.cves || []
+  const isVulnerable = vulnDeps.length > 0
 
   return (
     <div className="min-h-screen bg-humana-light">
-      {/* Header */}
+
+      {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <Shield size={12} className="text-red-500" />
-              UC #36 · Security Engineering
+              <Shield size={12} className="text-red-500" />UC #36 · Security Engineering
             </div>
             <h1 className="text-xl font-bold text-humana-navy">Container Vulnerability Intelligent Remediation (CVIT)</h1>
-            <p className="text-sm text-gray-500 mt-0.5">10-step multi-agent workflow: Detect → Enrich → Approve → Remediate → Validate → KB</p>
+            <p className="text-sm text-gray-500 mt-0.5">End-to-end: inject vuln → AKS deploy → ServiceNow P1 → 10-step agent remediation</p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <select value={selectedCluster} onChange={e => setSelectedCluster(e.target.value)}
-              className="bg-white border border-gray-300 text-gray-700 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-humana-green">
-              {CLUSTERS.map(c => <option key={c}>{c}</option>)}
-            </select>
-            {isRunning && <LiveIndicator label="AGENTS RUNNING" color="green" />}
-            <button onClick={startWorkflow} disabled={isRunning}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-              {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-              {isRunning ? 'Agents Running...' : 'Launch CVIT Workflow'}
-            </button>
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="flex items-center gap-1.5 bg-green-50 border border-green-200 text-humana-green px-2.5 py-1 rounded-full font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-humana-green animate-pulse" />GitHub Live
+            </span>
+            <span className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-2.5 py-1 rounded-full font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />Azure AKS
+            </span>
+            <span className="flex items-center gap-1.5 bg-humana-teal/10 border border-humana-teal/30 text-humana-teal px-2.5 py-1 rounded-full font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-humana-teal animate-pulse" />ServiceNow Live
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Status bar */}
-      <div className="bg-gray-50 border-b border-gray-200 px-6 py-2 flex flex-wrap items-center gap-4 text-xs">
-        <span className="text-gray-500">LangGraph StateGraph · Groq tool calling · NVD API · ServiceNow · GitHub</span>
-        {isRunning && timing.start && <span className="ml-auto text-amber-600 font-mono font-semibold">⏱ {elapsedSec}s</span>}
-        {isCompleted && <span className="ml-auto text-humana-green font-mono font-bold">✓ Workflow complete</span>}
+      {/* ── Stage progress bar ────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3 flex-wrap">
+        <StageBadge n={1} label="Inject Vulnerability"     active={stage === 1} done={stage1Done} />
+        <ArrowRight size={14} className="text-gray-300 shrink-0" />
+        <StageBadge n={2} label="Create ServiceNow P1"     active={stage === 2 && !stage2Done} done={stage2Done} />
+        <ArrowRight size={14} className="text-gray-300 shrink-0" />
+        <StageBadge n={3} label="CVIT Multi-Agent Workflow" active={stage === 3 && !stage3Done} done={stage3Done} />
       </div>
 
-      <div className="flex h-[calc(100vh-130px)]">
+      <div className="p-4 max-w-7xl mx-auto space-y-4">
 
-        {/* LEFT — 10-step timeline */}
-        <div className="w-52 bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0">
-          <div className="px-3 pt-4 pb-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Workflow Steps</div>
-          {STEPS.map(step => {
-            const state = stepStates[step.id]
-            const isCurrent = currentStep === step.index
-            const Icon = step.icon
-            return (
-              <div key={step.id} className={`flex items-start gap-2 px-3 py-2.5 mx-1.5 rounded-lg mb-0.5 transition-all ${isCurrent ? 'bg-humana-green/10 border border-humana-green/30' : ''}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                  state === 'done' ? 'bg-humana-green' : state === 'active' || isCurrent ? 'bg-humana-green/20 border-2 border-humana-green' : state === 'error' ? 'bg-red-500' : 'bg-gray-200'
-                }`}>
-                  {state === 'done' ? <CheckCircle2 size={10} className="text-white" /> :
-                   state === 'active' || isCurrent ? <Loader2 size={10} className="text-humana-green animate-spin" /> :
-                   <span className="text-xs text-gray-400 font-bold">{step.index}</span>}
-                </div>
-                <div>
-                  <div className={`text-xs font-semibold leading-tight ${isCurrent ? 'text-humana-green' : state === 'done' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {step.label}
-                  </div>
-                  {step.human && (
-                    <span className="text-xs text-amber-600 font-semibold">👤 Human-in-loop</span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* CENTER — Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-
-          {/* CVE Findings */}
-          {findings.length > 0 && (
-            <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-              <div className="text-xs font-bold text-gray-500 mb-2 uppercase">CVITs Detected — {findings.length} vulnerabilities</div>
-              <div className="flex flex-wrap gap-2">
-                {findings.map(f => (
-                  <div key={f.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-gray-200 shadow-sm">
-                    <span className={`text-xs font-black px-1.5 py-0.5 rounded ${SEV_BADGE[f.severity] || 'bg-gray-500 text-white'}`}>{f.severity}</span>
-                    <span className="font-mono text-xs text-humana-navy font-semibold">{f.id}</span>
-                    <span className="text-xs text-gray-500">{f.component} {f.version}</span>
-                    <ChevronRight size={10} className="text-humana-green" />
-                    <span className="text-xs text-humana-green font-semibold">{f.patchVersion}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Progress bar for monitor step */}
-          {progress > 0 && progress < 100 && (
-            <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="text-gray-600 font-semibold">Remediation Progress — Agent monitoring live</span>
-                <span className="text-humana-green font-bold">{progress}%</span>
-              </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} className="h-full bg-humana-green rounded-full" />
-              </div>
-            </div>
-          )}
-
-          {/* Artifacts row */}
-          {(artifacts.change || artifacts.incident || artifacts.pr || artifacts.kb) && (
-            <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 flex flex-wrap gap-3">
-              {artifacts.change && (
-                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
-                  <FileText size={12} className="text-amber-600" />
-                  <span className="text-amber-700 font-semibold">{artifacts.change.number}</span>
-                  <span className="text-gray-500">Change Request</span>
-                  <span className={`text-xs font-semibold ${artifacts.change.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>
-                    {artifacts.change.source?.includes('live') ? '● Live' : '○ Demo'}
-                  </span>
-                </div>
-              )}
-              {artifacts.incident && (
-                <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs">
-                  <Shield size={12} className="text-blue-600" />
-                  <span className="text-blue-700 font-semibold">{artifacts.incident.number}</span>
-                  <span className="text-gray-500">ServiceNow Incident</span>
-                  <span className={`text-xs font-semibold ${artifacts.incident.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>
-                    {artifacts.incident.source?.includes('live') ? '● Live' : '○ Demo'}
-                  </span>
-                </div>
-              )}
-              {artifacts.pr && (
-                <a href={artifacts.pr.url !== '#' ? artifacts.pr.url : undefined} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 text-xs hover:bg-purple-100 transition-colors">
-                  <GitPullRequest size={12} className="text-purple-600" />
-                  <span className="text-purple-700 font-semibold">PR #{artifacts.pr.number}</span>
-                  <span className="text-gray-500">GitHub PR</span>
-                  <span className={`text-xs font-semibold ${artifacts.pr.source === 'github_live' ? 'text-humana-green' : 'text-gray-400'}`}>
-                    {artifacts.pr.source === 'github_live' ? '● Live' : '○ Demo'}
-                  </span>
-                </a>
-              )}
-              {artifacts.kb && (
-                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs">
-                  <FileText size={12} className="text-humana-green" />
-                  <span className="text-humana-green font-semibold">{artifacts.kb.number}</span>
-                  <span className="text-gray-500">KB Article</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Agent log stream */}
-          <div className="flex-1 overflow-y-auto bg-gray-50 p-4 font-mono text-xs">
-            {logs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
-                <Shield size={48} className="text-gray-200" />
-                <div className="text-center">
-                  <div className="text-gray-600 font-semibold mb-1">CVIT Multi-Agent Orchestrator</div>
-                  <div className="text-gray-400">Select a cluster and click "Launch CVIT Workflow" to start</div>
-                  <div className="text-gray-300 mt-2">LangGraph + Groq Tool Calling + Azure + ServiceNow + GitHub</div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {logs.map((entry, i) => (
-                  <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }}
-                    className="flex items-start gap-2 leading-relaxed">
-                    <span className="text-gray-400 shrink-0 w-20 text-right">{new Date(entry.ts).toLocaleTimeString()}</span>
-                    <span className={`font-bold shrink-0 w-28 truncate ${
-                      entry.agent === 'ScannerAgent' ? 'text-red-600' :
-                      entry.agent === 'EnrichmentAgent' ? 'text-amber-600' :
-                      entry.agent === 'WorkPackageAgent' ? 'text-purple-600' :
-                      entry.agent === 'MonitorAgent' ? 'text-blue-600' :
-                      entry.agent === 'KBAgent' ? 'text-humana-green' :
-                      'text-humana-teal'
-                    }`}>[{entry.agent}]</span>
-                    <span className={`shrink-0 w-20 ${LOG_TYPE_COLOR[entry.type] || 'text-gray-500'}`}>{entry.type}</span>
-                    <span className="text-gray-700 flex-1 break-all">{entry.message}</span>
-                    {entry.data && entry.type === 'tool_result' && (
-                      <span className="text-humana-green text-xs shrink-0">✓ {Object.keys(entry.data).slice(0,3).join(', ')}</span>
-                    )}
-                  </motion.div>
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            )}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* STAGE 1 — Inject Vulnerability & Deploy to AKS                   */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        <div className="card-humana overflow-hidden">
+          <div className="bg-humana-navy px-5 py-3 flex items-center gap-3">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-black">1</div>
+            <span className="text-white font-bold text-sm">Inject Vulnerability into AKS App</span>
+            {stage1Done && <span className="ml-auto text-humana-green text-xs font-bold flex items-center gap-1"><CheckCircle2 size={12} />Complete</span>}
           </div>
-        </div>
 
-        {/* RIGHT — Human-in-loop panel */}
-        <div className="w-72 bg-white border-l border-gray-200 flex flex-col overflow-y-auto shrink-0">
-          <div className="px-4 pt-4 pb-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Human-in-Loop</div>
+          <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          <AnimatePresence>
-            {humanPending?.action === 'approve' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mx-3 mb-3 bg-amber-50 border border-amber-300 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="text-amber-700 font-bold text-sm">Approval Required</span>
-                </div>
-                <div className="text-xs text-gray-700 mb-3 leading-relaxed">
-                  Change request <span className="font-mono text-amber-700">{humanPending.changeTicket?.number}</span> created in ServiceNow.
-                  Risk level: <span className={`font-bold ${humanPending.cve?.cvss >= 8 ? 'text-red-600' : 'text-amber-600'}`}>
-                    {humanPending.cve?.cvss >= 8 ? 'HIGH' : 'MEDIUM'} (CVSS {humanPending.cve?.cvss || humanPending.cve?.cvss_score})
-                  </span>
-                </div>
-                <div className="space-y-2 mb-3">
-                  <div className="text-xs text-gray-500">CVE: <span className="text-gray-800 font-mono">{humanPending.cve?.id || humanPending.cve?.cve_id}</span></div>
-                  <div className="text-xs text-gray-500">Component: <span className="text-gray-800">{humanPending.cve?.component} → {humanPending.cve?.patchVersion}</span></div>
-                  <div className="text-xs text-gray-500">Namespace: <span className="text-humana-teal">{humanPending.cve?.namespace}</span></div>
-                </div>
-                <div className="mb-3">
-                  <div className="text-xs text-gray-500 mb-1">Approved by:</div>
-                  <input value={approverName} onChange={e => setApproverName(e.target.value)}
-                    className="w-full bg-white border border-gray-300 text-gray-800 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-humana-green" />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleApprove} className="flex-1 flex items-center justify-center gap-1.5 bg-humana-green hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg transition-colors">
-                    <ThumbsUp size={12} />Approve
-                  </button>
-                  <button onClick={handleReject} className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg transition-colors">
-                    <ThumbsDown size={12} />Reject
-                  </button>
-                </div>
-              </motion.div>
-            )}
+            {/* Current app state */}
+            <div className="flex flex-col gap-3">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                <Server size={12} />Current App — humana-aks-demo
+              </div>
 
-            {humanPending?.action === 'execute' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mx-3 mb-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-blue-700 font-bold text-sm">Execution Confirmation</span>
+              {/* Pods */}
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                  <Activity size={11} />AKS Pods — claims-processing
                 </div>
-                <div className="text-xs text-gray-700 mb-3 leading-relaxed">
-                  Work package ready. Review the items below and confirm execution.
+                {pods.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs py-1">
+                    <span className="font-mono text-gray-500 truncate max-w-36">{p.name}</span>
+                    <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${
+                      p.status === 'Running' ? 'bg-green-100 text-green-700' :
+                      p.status === 'Pending' || p.status === 'ContainerCreating' ? 'bg-amber-100 text-amber-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>{p.status}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Dependencies */}
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                  <Package size={11} />Dependencies (app/package.json)
                 </div>
-                <div className="space-y-1.5 mb-3 text-xs">
-                  {humanPending.pr && (
-                    <div className="flex items-center gap-2">
-                      <GitPullRequest size={11} className="text-purple-600" />
-                      <span className="text-gray-600">PR #{humanPending.pr.number} created</span>
-                      <span className={`${humanPending.pr.source === 'github_live' ? 'text-humana-green' : 'text-gray-300'}`}>
-                        {humanPending.pr.source === 'github_live' ? '●' : '○'}
-                      </span>
-                    </div>
-                  )}
-                  {humanPending.incident && (
-                    <div className="flex items-center gap-2">
-                      <Shield size={11} className="text-blue-600" />
-                      <span className="text-gray-600">{humanPending.incident.number} assigned</span>
-                      <span className={`${humanPending.incident.source?.includes('live') ? 'text-humana-green' : 'text-gray-300'}`}>
-                        {humanPending.incident.source?.includes('live') ? '●' : '○'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <button onClick={handleExecute}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition-colors">
-                  <Play size={12} fill="currentColor" />Confirm & Execute Remediation
+                {loadingPkgs ? <div className="text-xs text-gray-400">Loading...</div> : packages && (
+                  <div className="space-y-1">
+                    {Object.entries(packages.dependencies || {}).map(([pkg, ver]) => {
+                      const isVuln = vulnDeps.some(c => c.pkg.startsWith(pkg))
+                      return (
+                        <div key={pkg} className={`flex items-center justify-between text-xs px-2 py-1 rounded ${isVuln ? 'bg-red-50 border border-red-200' : 'bg-white border border-gray-100'}`}>
+                          <span className="font-mono font-semibold text-gray-700">{pkg}</span>
+                          <span className={`font-mono ${isVuln ? 'text-red-600 font-bold' : 'text-gray-500'}`}>
+                            {ver} {isVuln && '⚠'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* GitHub & Actions */}
+            <div className="flex flex-col gap-3">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                <GitBranch size={12} />GitHub — prashant-vashisth/humana-aks-demo
+              </div>
+
+              <a href="https://github.com/prashant-vashisth/humana-aks-demo" target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 text-xs text-humana-teal hover:underline font-medium">
+                <ExternalLink size={11} />View repo on GitHub
+              </a>
+
+              {/* Inject button */}
+              {!injected ? (
+                <button onClick={injectVulnerability} disabled={injecting}
+                  className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
+                  {injecting ? <Loader2 size={14} className="animate-spin" /> : <AlertTriangle size={14} />}
+                  {injecting ? 'Creating PR...' : 'Inject Vulnerability → GitHub PR'}
                 </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-red-700 mb-2">
+                      <AlertTriangle size={12} />Vulnerability PR Created
+                    </div>
+                    <a href={injected.pr?.url} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-humana-teal hover:underline font-semibold">
+                      <GitPullRequest size={11} />PR #{injected.pr?.number} — {injected.pr?.title?.slice(0, 40)}…
+                      <ExternalLink size={10} />
+                    </a>
+                    <div className="text-xs text-gray-500 mt-1">Branch: <span className="font-mono">{injected.pr?.branch}</span></div>
+                  </div>
 
-          {/* Completed summary */}
-          {isCompleted && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="mx-3 mb-3 bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle2 size={16} className="text-humana-green" />
-                <span className="text-humana-green font-bold text-sm">Workflow Complete</span>
+                  {!deployed ? (
+                    <button onClick={deployVulnerable} disabled={deploying}
+                      className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
+                      {deploying ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+                      {deploying ? 'Merging & Deploying...' : 'Merge PR → Deploy to AKS'}
+                    </button>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs">
+                      <div className="font-bold text-orange-700 mb-1 flex items-center gap-1.5">
+                        <CheckCircle2 size={11} />PR Merged — AKS Deployment Triggered
+                      </div>
+                      {deployed.run && (
+                        <a href={deployed.run.url} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1 text-humana-teal hover:underline">
+                          <ExternalLink size={10} />View GitHub Actions run
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Latest Actions runs */}
+              {actionsRuns.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="text-xs font-semibold text-gray-600 mb-2">Recent Actions Runs</div>
+                  {actionsRuns.slice(0, 3).map(run => (
+                    <a key={run.id} href={run.url} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 text-xs py-1 hover:text-humana-navy">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${run.conclusion === 'success' ? 'bg-green-500' : run.status === 'in_progress' ? 'bg-amber-400 animate-pulse' : run.conclusion === 'failure' ? 'bg-red-500' : 'bg-gray-300'}`} />
+                      <span className="text-gray-600 truncate flex-1">{run.commitMsg || run.name}</span>
+                      <span className="text-gray-400 shrink-0">{run.status === 'in_progress' ? 'running' : run.conclusion || run.status}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* CVE summary */}
+            <div className="flex flex-col gap-3">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                <Lock size={12} />Vulnerabilities Introduced
               </div>
-              <div className="space-y-1.5 text-xs">
-                {isCompleted && <div className="text-humana-green font-semibold text-xs">✓ All 10 steps complete</div>}
-                {artifacts.change && <div className="text-gray-500">📋 Change: <span className="font-mono text-gray-800">{artifacts.change.number}</span></div>}
-                {artifacts.incident && <div className="text-gray-500">🎫 Incident: <span className="font-mono text-gray-800">{artifacts.incident.number}</span></div>}
-                {artifacts.pr && <div className="text-gray-500">🔀 PR: <span className="font-mono text-gray-800">#{artifacts.pr.number}</span></div>}
-                {artifacts.kb && <div className="text-gray-500">📚 KB: <span className="font-mono text-gray-800">{artifacts.kb.number}</span></div>}
+              {injected?.cves ? (
+                <CveTable cves={injected.cves} />
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-center text-gray-400 text-xs py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                  Click "Inject Vulnerability" to create a<br />GitHub PR with known CVEs
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* STAGE 2 — Create ServiceNow P1                                   */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {(stage1Done || stage === 2) && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card-humana overflow-hidden">
+              <div className="bg-gradient-to-r from-orange-700 to-orange-900 px-5 py-3 flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-black">2</div>
+                <span className="text-white font-bold text-sm">ServiceNow P1 Incident — Automatic Detection</span>
+                {polling && <LiveIndicator label="POLLING SNOW" color="teal" />}
+                {stage2Done && <span className="ml-auto text-humana-green text-xs font-bold flex items-center gap-1"><CheckCircle2 size={12} />Agents dispatched</span>}
+              </div>
+
+              <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-4">
+                  {!p1Incident ? (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        Vulnerable build is running on AKS. Click below to create a real <strong>P1 Security Incident</strong> in ServiceNow — the CVIT polling agent will detect it and automatically trigger the remediation workflow.
+                      </p>
+                      <button onClick={createP1} disabled={creatingP1 || !deployed}
+                        className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-sm font-semibold px-5 py-3 rounded-lg transition-colors">
+                        {creatingP1 ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
+                        {creatingP1 ? 'Creating P1 in ServiceNow...' : 'Create ServiceNow P1 Incident'}
+                      </button>
+                      {!deployed && <p className="text-xs text-gray-400 text-center">Deploy to AKS first (Stage 1)</p>}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-red-700 font-bold text-sm">P1 Incident Created</span>
+                          <span className="ml-auto text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{p1Incident.priority}</span>
+                        </div>
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20">Number:</span>
+                            <span className="font-mono font-bold text-red-700">{p1Incident.number}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20">State:</span>
+                            <span className="font-semibold text-gray-800">{p1Incident.state}</span>
+                          </div>
+                          {p1Incident.url && (
+                            <a href={p1Incident.url} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1 text-humana-teal hover:underline font-semibold mt-2">
+                              <ExternalLink size={10} />View in ServiceNow
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {polling && (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs">
+                          <Loader2 size={14} className="animate-spin text-amber-600 shrink-0" />
+                          <div>
+                            <div className="font-semibold text-amber-700">Polling agent watching ServiceNow...</div>
+                            <div className="text-amber-600">Poll {pollCount} — will auto-trigger CVIT workflow when P1 confirmed</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {workflowId && !polling && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-xs">
+                          <CheckCircle2 size={14} className="text-humana-green shrink-0" />
+                          <div className="font-semibold text-humana-green">P1 ticket confirmed — CVIT agents dispatched automatically ↓</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 text-xs">
+                  <div className="font-bold text-gray-600 mb-3 uppercase tracking-widest">P1 Incident Details</div>
+                  <div className="space-y-2 text-gray-600">
+                    <div><span className="font-semibold">Instance:</span> dev283388.service-now.com</div>
+                    <div><span className="font-semibold">Priority:</span> P1 — Critical Security</div>
+                    <div><span className="font-semibold">Category:</span> Security / Vulnerability</div>
+                    <div><span className="font-semibold">Cluster:</span> humana-prod-aks</div>
+                    <div><span className="font-semibold">Namespace:</span> claims-processing</div>
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="font-semibold mb-1">Vulnerable packages flagged:</div>
+                      {(injected?.cves || [{ pkg: 'minimist@1.2.5', cve: 'CVE-2021-44906', cvss: 9.8 }]).map(c => (
+                        <div key={c.cve} className="flex items-center gap-2 py-0.5">
+                          <span className="text-red-500">●</span>
+                          <span className="font-mono">{c.pkg}</span>
+                          <span className="text-gray-400">{c.cve}</span>
+                          <span className="font-bold text-red-600">CVSS {c.cvss}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* Tech stack info */}
-          <div className="px-4 pt-2">
-            <div className="text-xs font-bold text-gray-400 mb-2 uppercase">Agent Framework</div>
-            <div className="space-y-1.5 text-xs text-gray-500">
-              {[
-                { label: 'Orchestrator', value: 'LangGraph.js StateGraph' },
-                { label: 'LLM',          value: 'Groq Llama 4 Scout' },
-                { label: 'Tool Calling', value: 'Groq Function Calling' },
-                { label: 'NVD API',      value: 'Real CVE enrichment' },
-                { label: 'ServiceNow',   value: 'Live dev283388 instance' },
-                { label: 'GitHub',       value: 'Real PR creation' },
-                { label: 'Azure',        value: 'ARM API + Defender' },
-              ].map(item => (
-                <div key={item.label} className="flex items-center justify-between">
-                  <span className="text-gray-400">{item.label}</span>
-                  <span className="text-gray-600 font-mono text-xs">{item.value}</span>
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* STAGE 3 — CVIT Multi-Agent Workflow                              */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {workflowId && (
+            <motion.div ref={stage3Ref} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card-humana overflow-hidden">
+              <div className="bg-gradient-to-r from-humana-navy to-[#003d7a] px-5 py-3 flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-black">3</div>
+                <span className="text-white font-bold text-sm">CVIT Multi-Agent Orchestration — LangChain + Groq</span>
+                {isRunning && <LiveIndicator label="AGENTS RUNNING" color="green" />}
+                {isCompleted && <span className="ml-auto text-humana-green text-xs font-bold flex items-center gap-1"><CheckCircle2 size={12} />All 10 steps complete</span>}
+              </div>
+
+              {/* CVE findings strip */}
+              {findings.length > 0 && (
+                <div className="bg-red-50 border-b border-red-100 px-4 py-3">
+                  <div className="text-xs font-bold text-red-700 mb-2">CVITs Detected — {findings.length} vulnerabilities</div>
+                  <div className="flex flex-wrap gap-2">
+                    {findings.map(f => (
+                      <div key={f.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-red-200 text-xs shadow-sm">
+                        <span className={`font-black px-1.5 py-0.5 rounded text-xs ${SEV_BADGE[f.severity]}`}>{f.severity}</span>
+                        <span className="font-mono font-semibold text-humana-navy">{f.id}</span>
+                        <span className="text-gray-500">{f.component} {f.version}</span>
+                        <ChevronRight size={10} className="text-humana-green" />
+                        <span className="text-humana-green font-semibold">{f.patchVersion}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
+              )}
+
+              {/* Progress bar */}
+              {progress > 0 && progress < 100 && (
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-gray-600 font-semibold">Remediation Progress — Agent monitoring live</span>
+                    <span className="text-humana-green font-bold">{progress}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} className="h-full bg-humana-green rounded-full" />
+                  </div>
+                </div>
+              )}
+
+              {/* Artifacts bar */}
+              {(artifacts.change || artifacts.incident || artifacts.pr || artifacts.kb) && (
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex flex-wrap gap-3">
+                  {artifacts.change && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
+                      <FileText size={12} className="text-amber-600" /><span className="text-amber-700 font-semibold">{artifacts.change.number}</span>
+                      <span className="text-gray-500">Change</span>
+                      <span className={`font-semibold ${artifacts.change.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.change.source?.includes('live') ? '● Live' : '○'}</span>
+                    </div>
+                  )}
+                  {artifacts.incident && (
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs">
+                      <Shield size={12} className="text-blue-600" /><span className="text-blue-700 font-semibold">{artifacts.incident.number}</span>
+                      <span className="text-gray-500">Incident</span>
+                      <span className={`font-semibold ${artifacts.incident.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.incident.source?.includes('live') ? '● Live' : '○'}</span>
+                    </div>
+                  )}
+                  {artifacts.pr && (
+                    <a href={artifacts.pr.url !== '#' ? artifacts.pr.url : undefined} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 text-xs hover:bg-purple-100">
+                      <GitPullRequest size={12} className="text-purple-600" /><span className="text-purple-700 font-semibold">PR #{artifacts.pr.number}</span>
+                      <span className="text-gray-500">Fix PR</span>
+                      <span className={`font-semibold ${artifacts.pr.source === 'github_live' ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.pr.source === 'github_live' ? '● Live' : '○'}</span>
+                    </a>
+                  )}
+                  {artifacts.kb && (
+                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs">
+                      <FileText size={12} className="text-humana-green" /><span className="text-humana-green font-semibold">{artifacts.kb.number}</span>
+                      <span className="text-gray-500">KB Article</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex h-[calc(100vh-200px)] min-h-96">
+                {/* LEFT — step timeline */}
+                <div className="w-52 bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0">
+                  <div className="px-3 pt-3 pb-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Workflow Steps</div>
+                  {WORKFLOW_STEPS.map(step => {
+                    const state = stepStates[step.id]
+                    const isCurrent = currentStep === step.index
+                    return (
+                      <div key={step.id} className={`flex items-start gap-2 px-3 py-2.5 mx-1.5 rounded-lg mb-0.5 transition-all ${isCurrent ? 'bg-humana-green/10 border border-humana-green/30' : ''}`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${state === 'done' ? 'bg-humana-green' : state === 'active' || isCurrent ? 'bg-humana-green/20 border-2 border-humana-green' : state === 'error' ? 'bg-red-500' : 'bg-gray-200'}`}>
+                          {state === 'done' ? <CheckCircle2 size={10} className="text-white" /> :
+                           state === 'active' || isCurrent ? <Loader2 size={10} className="text-humana-green animate-spin" /> :
+                           <span className="text-xs text-gray-400 font-bold">{step.index}</span>}
+                        </div>
+                        <div>
+                          <div className={`text-xs font-semibold leading-tight ${isCurrent ? 'text-humana-green' : state === 'done' ? 'text-gray-400' : 'text-gray-500'}`}>{step.label}</div>
+                          {step.human && <span className="text-xs text-amber-600 font-semibold">👤 Human-in-loop</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* CENTER — agent log stream */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-4 font-mono text-xs">
+                  {logs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
+                      <Loader2 size={32} className="text-gray-200 animate-spin" />
+                      <div className="text-center">
+                        <div className="text-gray-500 font-semibold">Agents initialising...</div>
+                        <div className="text-gray-400 mt-1">ServiceNow P1 ticket confirmed — starting workflow</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {logs.map((entry, i) => (
+                        <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-2 leading-relaxed">
+                          <span className="text-gray-400 shrink-0 w-20 text-right">{new Date(entry.ts).toLocaleTimeString()}</span>
+                          <span className={`font-bold shrink-0 w-28 truncate ${AGENT_COLOR[entry.agent] || 'text-humana-teal'}`}>[{entry.agent}]</span>
+                          <span className={`shrink-0 w-20 ${LOG_COLOR[entry.type] || 'text-gray-500'}`}>{entry.type}</span>
+                          <span className="text-gray-700 flex-1 break-all">{entry.message}</span>
+                          {entry.data && entry.type === 'tool_result' && (
+                            <span className="text-humana-green text-xs shrink-0">✓ {Object.keys(entry.data).slice(0,3).join(', ')}</span>
+                          )}
+                        </motion.div>
+                      ))}
+                      <div ref={logEndRef} />
+                    </div>
+                  )}
+                </div>
+
+                {/* RIGHT — human-in-loop + summary */}
+                <div className="w-72 bg-white border-l border-gray-200 flex flex-col overflow-y-auto shrink-0">
+                  <div className="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Human-in-Loop</div>
+
+                  <AnimatePresence>
+                    {humanPending?.action === 'approve' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        className="mx-3 mb-3 bg-amber-50 border border-amber-300 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+                          <span className="text-amber-700 font-bold text-sm">Approval Required</span>
+                        </div>
+                        <div className="text-xs text-gray-700 mb-3 leading-relaxed">
+                          Change <span className="font-mono text-amber-700">{humanPending.changeTicket?.number}</span> awaits sign-off.
+                          Risk: <span className={`font-bold ${humanPending.cve?.cvss >= 8 ? 'text-red-600' : 'text-amber-600'}`}>
+                            {humanPending.cve?.cvss >= 8 ? 'HIGH' : 'MEDIUM'} (CVSS {humanPending.cve?.cvss || humanPending.cve?.cvss_score})
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 text-xs mb-3">
+                          <div className="text-gray-500">CVE: <span className="text-gray-800 font-mono">{humanPending.cve?.id || humanPending.cve?.cve_id}</span></div>
+                          <div className="text-gray-500">Package: <span className="text-gray-800">{humanPending.cve?.component} → {humanPending.cve?.patchVersion}</span></div>
+                          <div className="text-gray-500">Namespace: <span className="text-humana-teal">{humanPending.cve?.namespace}</span></div>
+                        </div>
+                        <div className="mb-3">
+                          <input value={approverName} onChange={e => setApproverName(e.target.value)} placeholder="Approver name"
+                            className="w-full bg-white border border-gray-300 text-gray-800 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-humana-green" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={handleApprove} className="flex-1 flex items-center justify-center gap-1.5 bg-humana-green hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg">
+                            <ThumbsUp size={12} />Approve
+                          </button>
+                          <button onClick={handleReject} className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg">
+                            <ThumbsDown size={12} />Reject
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {humanPending?.action === 'execute' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        className="mx-3 mb-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+                          <span className="text-blue-700 font-bold text-sm">Confirm Execution</span>
+                        </div>
+                        <p className="text-xs text-gray-700 mb-3">Work package ready. Fix PR created on GitHub. Confirm to deploy remediation to AKS.</p>
+                        {humanPending.pr && (
+                          <div className="flex items-center gap-2 mb-3 text-xs">
+                            <GitPullRequest size={11} className="text-purple-600" />
+                            <span className="text-gray-600">PR #{humanPending.pr.number}</span>
+                            <span className={humanPending.pr.source === 'github_live' ? 'text-humana-green font-semibold' : 'text-gray-400'}>
+                              {humanPending.pr.source === 'github_live' ? '● Live' : '○ Demo'}
+                            </span>
+                          </div>
+                        )}
+                        <button onClick={handleExecute}
+                          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg">
+                          <Play size={12} fill="currentColor" />Deploy Fix to AKS
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {isCompleted && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-3 mb-3 bg-green-50 border border-green-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle2 size={16} className="text-humana-green" />
+                        <span className="text-humana-green font-bold text-sm">Fully Remediated</span>
+                      </div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="text-humana-green font-semibold">✓ All 10 steps complete</div>
+                        {artifacts.change   && <div className="text-gray-500">📋 Change: <span className="font-mono text-gray-800">{artifacts.change.number}</span></div>}
+                        {artifacts.incident && <div className="text-gray-500">🎫 Incident: <span className="font-mono text-gray-800">{artifacts.incident.number}</span></div>}
+                        {artifacts.pr       && <div className="text-gray-500">🔀 Fix PR: <span className="font-mono text-gray-800">#{artifacts.pr.number}</span></div>}
+                        {artifacts.kb       && <div className="text-gray-500">📚 KB: <span className="font-mono text-gray-800">{artifacts.kb.number}</span></div>}
+                        {p1Incident         && <div className="text-gray-500">🚨 P1 Resolved: <span className="font-mono text-gray-800">{p1Incident.number}</span></div>}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <div className="px-4 pt-2 mt-auto">
+                    <div className="text-xs font-bold text-gray-400 mb-2 uppercase">Stack</div>
+                    <div className="space-y-1.5 text-xs">
+                      {[['Orchestrator','LangGraph StateGraph'],['LLM','Groq Llama 4 Scout'],['Tools','Groq Function Calling'],['CVE Data','NVD API — Live'],['Ticketing','ServiceNow Live'],['Source','GitHub Real PRs'],['Infra','Azure AKS']].map(([k,v]) => (
+                        <div key={k} className="flex items-center justify-between">
+                          <span className="text-gray-400">{k}</span>
+                          <span className="text-gray-600 font-mono text-xs">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   )
