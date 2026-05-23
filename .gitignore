@@ -5,3 +5,12 @@ dist/
 .DS_Store
 *.log
 .vite/
+
+# Terraform — never commit provider binaries, state, or lock state
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/terraform.tfstate.*.backup
+terraform/.terraform.tfstate.lock.info
+*.tfstate
+*.tfstate.backup

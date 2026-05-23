@@ -42,7 +42,7 @@ router.get('/app-packages', async (req, res) => {
     res.json({ pkg, sha: r.data.sha, source: 'github_live' });
   } catch (e) {
     res.json({
-      pkg: { version: '1.2.0', dependencies: { express: '4.18.2', lodash: '4.17.21', axios: '1.6.0', helmet: '7.1.0', cors: '2.8.5' } },
+      pkg: { version: '1.2.0', dependencies: { express: '4.18.2', jsonwebtoken: '9.0.2', 'node-fetch': '3.3.2', cookie: '0.7.2', helmet: '7.1.0', cors: '2.8.5' } },
       source: 'fallback',
     });
   }
@@ -94,32 +94,32 @@ router.post('/inject-vulnerability', async (req, res) => {
     const fileRes = await axios.get(`${base}/contents/app/package.json`, { headers: ghHeaders() });
     const currentSha = fileRes.data.sha;
 
-    // Vulnerable package.json — introduces 3 real CVEs
+    // Vulnerable package.json — introduces 3 real CVEs that infrastructure leaders understand
     const vulnPkg = {
       name: 'humana-member-portal',
-      version: '1.2.0',
+      version: '1.2.1',
       description: 'Humana Member Portal — Claims Processing Microservice',
       main: 'index.js',
       scripts: { start: 'node index.js', test: 'echo ok' },
       dependencies: {
-        express:  '4.18.2',
-        lodash:   '4.17.15',   // CVE-2021-23337 — command injection
-        axios:    '0.21.1',    // CVE-2021-3749  — SSRF via redirect
-        minimist: '1.2.5',     // CVE-2021-44906 — prototype pollution CVSS 9.8
-        helmet:   '7.1.0',
-        cors:     '2.8.5',
+        express:       '4.18.2',
+        jsonwebtoken:  '8.5.1',   // CVE-2022-23529 — authentication bypass, CVSS 9.8
+        'node-fetch':  '2.6.1',   // CVE-2022-0235  — internal network exposure, CVSS 8.8
+        cookie:        '0.5.0',   // CVE-2024-47764 — session hijacking, CVSS 9.1
+        helmet:        '7.1.0',
+        cors:          '2.8.5',
       },
       engines: { node: '>=18.0.0' },
     };
 
     // Create branch
     const mainRef = await axios.get(`${base}/git/ref/heads/main`, { headers: ghHeaders() });
-    const branch = `feat/add-data-processing-utils-${Date.now()}`;
+    const branch = `feat/member-portal-auth-session-upgrade-${Date.now()}`;
     await axios.post(`${base}/git/refs`, { ref: `refs/heads/${branch}`, sha: mainRef.data.object.sha }, { headers: ghHeaders() });
 
     // Commit vulnerable package.json to branch
     await axios.put(`${base}/contents/app/package.json`, {
-      message: 'feat: add lodash data processing utilities and axios client',
+      message: 'feat: upgrade auth library and improve session management for member portal',
       content: Buffer.from(JSON.stringify(vulnPkg, null, 2)).toString('base64'),
       sha: currentSha,
       branch,
@@ -127,8 +127,8 @@ router.post('/inject-vulnerability', async (req, res) => {
 
     // Create PR — realistic title, no mention of vulnerability
     const prRes = await axios.post(`${base}/pulls`, {
-      title: 'feat: add lodash utilities and upgrade HTTP client library',
-      body: `## Summary\n- Add lodash data processing helpers for claims transformation\n- Upgrade axios HTTP client for improved performance\n- Add minimist for CLI argument parsing in batch jobs\n\n## Test Plan\n- [ ] Unit tests passing\n- [ ] Integration tests green\n- [ ] Performance benchmarks within SLA`,
+      title: 'feat: upgrade authentication and session management libraries',
+      body: `## Summary\n- Upgrade \`jsonwebtoken\` for improved API token validation in member portal\n- Upgrade \`node-fetch\` for faster claims data retrieval from internal APIs\n- Add \`cookie\` library for enhanced session management\n\n## Business Impact\n- Faster login response for 8.2M members\n- Improved claims API throughput by ~18%\n- More reliable session handling\n\n## Test Plan\n- [ ] Unit tests passing\n- [ ] Integration tests green\n- [ ] Load test: 500 concurrent member sessions\n- [ ] HIPAA compliance scan scheduled`,
       head: branch,
       base: 'main',
     }, { headers: ghHeaders() });
@@ -136,9 +136,9 @@ router.post('/inject-vulnerability', async (req, res) => {
     res.json({
       pr: { number: prRes.data.number, url: prRes.data.html_url, branch, title: prRes.data.title },
       cves: [
-        { pkg: 'lodash@4.17.15',   cve: 'CVE-2021-23337', severity: 'HIGH',     cvss: 7.2, desc: 'Command injection via template' },
-        { pkg: 'axios@0.21.1',     cve: 'CVE-2021-3749',  severity: 'HIGH',     cvss: 6.5, desc: 'SSRF via crafted HTTP redirect' },
-        { pkg: 'minimist@1.2.5',   cve: 'CVE-2021-44906', severity: 'CRITICAL', cvss: 9.8, desc: 'Prototype pollution — remote code execution' },
+        { pkg: 'jsonwebtoken@8.5.1', cve: 'CVE-2022-23529', severity: 'CRITICAL', cvss: 9.8, desc: 'Authentication bypass — login tokens can be forged, granting admin access without a password' },
+        { pkg: 'node-fetch@2.6.1',   cve: 'CVE-2022-0235',  severity: 'HIGH',     cvss: 8.8, desc: 'Internal network exposure — app can be tricked into accessing internal Humana systems on behalf of an attacker' },
+        { pkg: 'cookie@0.5.0',       cve: 'CVE-2024-47764', severity: 'CRITICAL', cvss: 9.1, desc: 'Session hijacking — active member login sessions can be stolen and taken over' },
       ],
       source: 'github_live',
     });
@@ -156,7 +156,7 @@ router.post('/deploy-vulnerable', async (req, res) => {
     // Merge the PR
     if (prNumber) {
       await axios.put(`${base}/pulls/${prNumber}/merge`, {
-        commit_title: `feat: add lodash utilities and upgrade HTTP client library (#${prNumber})`,
+        commit_title: `feat: upgrade authentication and session management libraries (#${prNumber})`,
         merge_method: 'squash',
       }, { headers: ghHeaders() });
     }
@@ -275,7 +275,7 @@ router.post('/start-snow-polling', async (req, res) => {
         setImmediate(async () => {
           try {
             emitFn('started', { workflowId, cluster, triggeredBy: 'snow_polling', incidentNumber });
-            await startWorkflow(workflowId, cluster, cves[0]?.cve || 'CVE-2021-44906', emitFn);
+            await startWorkflow(workflowId, cluster, cves[0]?.cve || 'CVE-2022-23529', emitFn);
           } catch (err) {
             emitFn('error', { message: err.message });
           }

@@ -6,10 +6,11 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = var.subscription_id
-  tenant_id       = var.tenant_id
-  client_id       = var.client_id
-  client_secret   = var.client_secret
+  subscription_id            = var.subscription_id
+  tenant_id                  = var.tenant_id
+  client_id                  = var.client_id
+  client_secret              = var.client_secret
+  skip_provider_registration = true
 }
 
 resource "azurerm_resource_group" "main" {
@@ -30,13 +31,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   dns_prefix          = "humana-aks"
-  kubernetes_version  = "1.29"
 
   default_node_pool {
     name       = "system"
-    node_count = 2
-    vm_size    = "Standard_B2s"
+    node_count = 1
+    vm_size    = "Standard_DC2s_v3"
   }
+
+  oidc_issuer_enabled = true
 
   identity {
     type = "SystemAssigned"
@@ -50,7 +52,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   tags = { environment = "demo", team = "platform-engineering" }
 }
 
-# Grant AKS pull access to ACR
 resource "azurerm_role_assignment" "aks_acr_pull" {
   principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
   role_definition_name = "AcrPull"
