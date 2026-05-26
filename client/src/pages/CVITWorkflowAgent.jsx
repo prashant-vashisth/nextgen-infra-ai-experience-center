@@ -50,8 +50,8 @@ function CveTable({ cves }) {
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-gray-50 text-gray-500 font-semibold text-left">
-            <th className="px-3 py-2">Package</th>
-            <th className="px-3 py-2">CVE</th>
+            <th className="px-3 py-2">Component</th>
+            <th className="px-3 py-2">Violation ID</th>
             <th className="px-3 py-2">CVSS</th>
             <th className="px-3 py-2">Severity</th>
             <th className="px-3 py-2">Impact</th>
@@ -73,6 +73,59 @@ function CveTable({ cves }) {
   )
 }
 
+// ─── Agent Step Card ──────────────────────────────────────────────────────────
+function AgentStepCard({ step, isActive, isDone, latestLog, stepArtifacts }) {
+  const Icon = step.icon
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      className={`rounded-xl border transition-all ${
+        isActive ? 'bg-white border-humana-green/50 shadow-md' :
+        isDone   ? 'bg-white border-gray-200' :
+                   'bg-gray-50 border-gray-100'
+      }`}
+    >
+      <div className="flex items-start gap-3 p-4">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+          isDone   ? 'bg-humana-green' :
+          isActive ? 'bg-humana-green/10 border-2 border-humana-green' :
+                     'bg-gray-200'
+        }`}>
+          {isDone   ? <CheckCircle2 size={15} className="text-white" /> :
+           isActive ? <Loader2 size={13} className="text-humana-green animate-spin" /> :
+                      <Icon size={13} className="text-gray-400" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className={`text-xs font-bold ${AGENT_COLOR[step.agent] || 'text-humana-teal'}`}>{step.agent}</span>
+            <span className="text-xs text-gray-300">·</span>
+            <span className="text-xs text-gray-600 font-medium">{step.label}</span>
+            {step.human && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">👤 Human-in-loop</span>}
+            {isActive && <span className="ml-auto text-xs text-humana-green font-bold animate-pulse flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-humana-green inline-block" />Live</span>}
+            {isDone   && <span className="ml-auto text-xs text-humana-green font-semibold">✓ Complete</span>}
+          </div>
+          {latestLog && (
+            <div className={`text-xs mt-1.5 font-mono leading-relaxed line-clamp-2 ${isActive ? 'text-gray-800' : 'text-gray-500'}`}>
+              {isActive && <span className="text-humana-green mr-1">▶</span>}
+              {latestLog.message}
+            </div>
+          )}
+          {isDone && stepArtifacts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {stepArtifacts.map((a, i) => (
+                <a key={i} href={a.url || '#'} target="_blank" rel="noreferrer"
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-semibold hover:shadow-sm transition-all ${a.style}`}>
+                  {a.icon}{a.label}<ExternalLink size={9} />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function CVITWorkflowAgent() {
   // ── Stage 1 state
@@ -90,6 +143,9 @@ export default function CVITWorkflowAgent() {
   const [p1Incident, setP1Incident] = useState(null)
   const [polling, setPolling]       = useState(false)
   const [pollCount, setPollCount]   = useState(0)
+  const [cvitId, setCvitId]         = useState(null)   // e.g. CVIT-20260523-0003
+  const [runSeq, setRunSeq]         = useState(null)   // sequence number 1, 2, 3…
+  const [scenario, setScenario]     = useState(null)   // scenario id
 
   // ── Stage 3 (CVIT workflow) state
   const [workflowId, setWorkflowId]   = useState(null)
@@ -103,11 +159,15 @@ export default function CVITWorkflowAgent() {
   const [isRunning, setIsRunning]     = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
   const [approverName, setApproverName] = useState('security-manager')
+  const [p1Closed, setP1Closed]       = useState(null)   // { url, number, notes }
 
-  const esRef      = useRef(null)
-  const pollEsRef  = useRef(null)
-  const logEndRef  = useRef(null)
-  const stage3Ref  = useRef(null)
+  const [stepLogs, setStepLogs] = useState({})   // { stepId: latestLogEntry }
+
+  const esRef           = useRef(null)
+  const pollEsRef       = useRef(null)
+  const logEndRef       = useRef(null)
+  const stage3Ref       = useRef(null)
+  const activeStepIdRef = useRef(null)
 
   const stage = isRunning || workflowId ? 3 : p1Incident ? 2 : injected ? 2 : 1
   const stage1Done = !!deployed
@@ -148,6 +208,9 @@ export default function CVITWorkflowAgent() {
       const r = await fetch(`${API_URL}/api/cvit/inject-vulnerability`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       const d = await r.json()
       setInjected(d)
+      if (d.cvitId)   setCvitId(d.cvitId)
+      if (d.sequence) setRunSeq(d.sequence)
+      if (d.scenario) setScenario(d.scenario)
       // Refresh packages to show vulnerable state
       fetch(`${API_URL}/api/cvit/app-packages`).then(r => r.json()).then(d => setPackages(d.pkg)).catch(() => {})
     } finally { setInjecting(false) }
@@ -177,7 +240,7 @@ export default function CVITWorkflowAgent() {
     try {
       const r = await fetch(`${API_URL}/api/cvit/create-p1-incident`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cves: injected?.cves || [], cluster: 'humana-prod-aks', prUrl: injected?.pr?.url }),
+        body: JSON.stringify({ cves: injected?.cves || [], cluster: 'humana-prod-aks', prUrl: injected?.pr?.url, vulnImage: injected?.vulnImage, fixImage: injected?.fixImage }),
       })
       const d = await r.json()
       setP1Incident(d.incident)
@@ -194,7 +257,7 @@ export default function CVITWorkflowAgent() {
 
     await fetch(`${API_URL}/api/cvit/start-snow-polling`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ incidentSysId: incident.sys_id, incidentNumber: incident.number, cves: injected?.cves || [] }),
+      body: JSON.stringify({ incidentSysId: incident.sys_id, incidentNumber: incident.number, incidentUrl: incident.url, cves: injected?.cves || [], cvitId, scenario }),
     })
 
     // Connect SSE for polling updates
@@ -223,26 +286,43 @@ export default function CVITWorkflowAgent() {
       switch (event) {
         case 'step':
           setCurrentStep(data.index)
+          activeStepIdRef.current = data.step
           setStepStates(prev => ({ ...prev, [data.step]: 'active' }))
           if (data.index > 1) {
             const prev = WORKFLOW_STEPS[data.index - 2]
             if (prev) setStepStates(p => ({ ...p, [prev.id]: 'done' }))
           }
           break
-        case 'log':   setLogs(prev => [...prev.slice(-199), data]); break
+        case 'log':
+          setLogs(prev => [...prev.slice(-199), data])
+          if (activeStepIdRef.current) {
+            setStepLogs(prev => ({ ...prev, [activeStepIdRef.current]: data }))
+          }
+          break
         case 'human_required': setHumanPending(data); break
         case 'approved': setHumanPending(null); setStepStates(p => ({ ...p, awaiting_approval: 'done' })); break
         case 'execution_confirmed': setHumanPending(null); setStepStates(p => ({ ...p, awaiting_execution: 'done' })); break
         case 'rejected': setStepStates(p => ({ ...p, awaiting_approval: 'error' })); setIsRunning(false); break
         case 'progress': setProgress(data.pct || 0); break
         case 'work_package_ready': setArtifacts(prev => ({ ...prev, incident: data.incident, pr: data.pr })); break
+        case 'p1_closed': setP1Closed(data); break
+        case 'kb_ready':
+          setArtifacts(p => ({ ...p, kb: data.kbArticle }))
+          setStepStates(p => ({ ...p, kb_update: 'done' }))
+          setIsCompleted(true)
+          setIsRunning(false)
+          break
         case 'state':
           if (data.findings?.length) setFindings(data.findings)
-          if (data.changeTicket)  setArtifacts(p => ({ ...p, change: data.changeTicket }))
+          if (data.changeTicket)   setArtifacts(p => ({ ...p, change: data.changeTicket }))
           if (data.incidentTicket) setArtifacts(p => ({ ...p, incident: data.incidentTicket }))
-          if (data.githubPR)      setArtifacts(p => ({ ...p, pr: data.githubPR }))
-          if (data.kbArticle)     setArtifacts(p => ({ ...p, kb: data.kbArticle }))
-          if (data.step === 'completed') { setIsCompleted(true); setIsRunning(false) }
+          if (data.githubPR)       setArtifacts(p => ({ ...p, pr: data.githubPR }))
+          if (data.kbArticle)      setArtifacts(p => ({ ...p, kb: data.kbArticle }))
+          if (data.step === 'completed') {
+            setIsCompleted(true)
+            setIsRunning(false)
+            setStepStates(p => ({ ...p, kb_update: 'done' }))
+          }
           break
         case 'error':
           setLogs(prev => [...prev, { ts: new Date().toISOString(), agent: 'System', type: 'error', message: data.message }])
@@ -252,7 +332,7 @@ export default function CVITWorkflowAgent() {
       }
     }
 
-    ['step','log','human_required','approved','execution_confirmed','rejected','progress','work_package_ready','state','error','started']
+    ['step','log','human_required','approved','execution_confirmed','rejected','progress','work_package_ready','p1_closed','state','error','started']
       .forEach(evt => es.addEventListener(evt, (e) => { try { handle(evt, JSON.parse(e.data)) } catch {} }))
     es.addEventListener('started', () => setIsRunning(true))
   }
@@ -274,6 +354,36 @@ export default function CVITWorkflowAgent() {
   const vulnDeps = injected?.cves || []
   const isVulnerable = vulnDeps.length > 0
 
+  const getStepArtifacts = (step) => {
+    const arts = []
+    if (step.id === 'enrich' && findings.length > 0) {
+      arts.push({ url: null, icon: <Shield size={10} />, label: `${findings.length} CVEs enriched`, style: 'bg-red-50 border-red-200 text-red-700 cursor-default' })
+    }
+    if (step.id === 'awaiting_approval' && artifacts.change?.url) {
+      arts.push({ url: artifacts.change.url, icon: <FileText size={10} />, label: artifacts.change.number, style: 'bg-amber-50 border-amber-200 text-amber-700' })
+    }
+    if (step.id === 'work_package') {
+      if (artifacts.incident?.url) arts.push({ url: artifacts.incident.url, icon: <Shield size={10} />, label: artifacts.incident.number, style: 'bg-blue-50 border-blue-200 text-blue-700' })
+      if (artifacts.pr?.url && artifacts.pr.url !== '#') {
+        arts.push({ url: artifacts.pr.url, icon: <GitPullRequest size={10} />, label: `PR #${artifacts.pr.number}`, style: 'bg-purple-50 border-purple-200 text-purple-700' })
+        arts.push({ url: `${artifacts.pr.url}/files`, icon: <GitBranch size={10} />, label: 'Code Diff', style: 'bg-indigo-50 border-indigo-200 text-indigo-700' })
+      }
+    }
+    if (step.id === 'awaiting_execution' && artifacts.pr?.url && artifacts.pr.url !== '#') {
+      arts.push({ url: artifacts.pr.url, icon: <GitPullRequest size={10} />, label: `Review PR #${artifacts.pr.number}`, style: 'bg-purple-50 border-purple-200 text-purple-700' })
+    }
+    if (step.id === 'monitor' && latestRun?.url) {
+      arts.push({ url: latestRun.url, icon: <Activity size={10} />, label: `AKS Deploy ${latestRun.conclusion === 'success' ? '✓' : '⟳'}`, style: 'bg-gray-100 border-gray-300 text-gray-700' })
+    }
+    if (step.id === 'close' && p1Incident?.url) {
+      arts.push({ url: p1Incident.url, icon: <Bell size={10} />, label: `${p1Incident.number} Closed`, style: 'bg-green-50 border-green-200 text-humana-green' })
+    }
+    if (step.id === 'kb_update' && artifacts.kb?.url) {
+      arts.push({ url: artifacts.kb.url, icon: <FileText size={10} />, label: `KB ${artifacts.kb.number}`, style: 'bg-green-50 border-green-200 text-humana-green' })
+    }
+    return arts
+  }
+
   return (
     <div className="min-h-screen bg-humana-light">
 
@@ -285,7 +395,7 @@ export default function CVITWorkflowAgent() {
               <Shield size={12} className="text-red-500" />UC #36 · Security Engineering
             </div>
             <h1 className="text-xl font-bold text-humana-navy">Container Vulnerability Intelligent Remediation (CVIT)</h1>
-            <p className="text-sm text-gray-500 mt-0.5">End-to-end: inject vuln → AKS deploy → ServiceNow P1 → 10-step agent remediation</p>
+            <p className="text-sm text-gray-500 mt-0.5">End-to-end: inject EOL runtime → AKS deploy → ServiceNow P1 → 10-step agent remediation</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs">
             <span className="flex items-center gap-1.5 bg-green-50 border border-green-200 text-humana-green px-2.5 py-1 rounded-full font-semibold">
@@ -303,7 +413,7 @@ export default function CVITWorkflowAgent() {
 
       {/* ── Stage progress bar ────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3 flex-wrap">
-        <StageBadge n={1} label="Inject Vulnerability"     active={stage === 1} done={stage1Done} />
+        <StageBadge n={1} label="Inject EOL Runtime"        active={stage === 1} done={stage1Done} />
         <ArrowRight size={14} className="text-gray-300 shrink-0" />
         <StageBadge n={2} label="Create ServiceNow P1"     active={stage === 2 && !stage2Done} done={stage2Done} />
         <ArrowRight size={14} className="text-gray-300 shrink-0" />
@@ -318,7 +428,12 @@ export default function CVITWorkflowAgent() {
         <div className="card-humana overflow-hidden">
           <div className="bg-humana-navy px-5 py-3 flex items-center gap-3">
             <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-black">1</div>
-            <span className="text-white font-bold text-sm">Inject Vulnerability into AKS App</span>
+            <span className="text-white font-bold text-sm">Inject EOL Runtime into AKS App</span>
+            {cvitId && (
+              <span className="ml-2 bg-white/10 border border-white/20 text-white/90 text-xs font-mono px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />{cvitId} · Run #{runSeq}
+              </span>
+            )}
             {stage1Done && <span className="ml-auto text-humana-green text-xs font-bold flex items-center gap-1"><CheckCircle2 size={12} />Complete</span>}
           </div>
 
@@ -327,7 +442,7 @@ export default function CVITWorkflowAgent() {
             {/* Current app state */}
             <div className="flex flex-col gap-3">
               <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                <Server size={12} />Current App — humana-aks-demo
+                <Server size={12} />Current App — aks-nodeapp-demo
               </div>
 
               {/* Pods */}
@@ -347,24 +462,33 @@ export default function CVITWorkflowAgent() {
                 ))}
               </div>
 
-              {/* Dependencies */}
+              {/* Container Runtime */}
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                 <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
-                  <Package size={11} />Dependencies (app/package.json)
+                  <Package size={11} />Container Runtime (app/Dockerfile)
                 </div>
-                {loadingPkgs ? <div className="text-xs text-gray-400">Loading...</div> : packages && (
-                  <div className="space-y-1">
-                    {Object.entries(packages.dependencies || {}).map(([pkg, ver]) => {
-                      const isVuln = vulnDeps.some(c => c.pkg.startsWith(pkg))
-                      return (
-                        <div key={pkg} className={`flex items-center justify-between text-xs px-2 py-1 rounded ${isVuln ? 'bg-red-50 border border-red-200' : 'bg-white border border-gray-100'}`}>
-                          <span className="font-mono font-semibold text-gray-700">{pkg}</span>
-                          <span className={`font-mono ${isVuln ? 'text-red-600 font-bold' : 'text-gray-500'}`}>
-                            {ver} {isVuln && '⚠'}
-                          </span>
-                        </div>
-                      )
-                    })}
+                {injected?.vulnImage ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-red-50 border border-red-200">
+                      <span className="font-mono text-gray-500">FROM</span>
+                      <span className="font-mono text-red-600 font-bold">{injected.vulnImage} ⚠</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-red-600 font-semibold px-1">
+                      <AlertTriangle size={10} />EOL Runtime — Compliance Violation
+                    </div>
+                    <div className="text-xs text-gray-400 px-1">
+                      Fix target: <span className="font-mono text-humana-green">{injected.fixImage || 'node:20-alpine'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-white border border-gray-100">
+                      <span className="font-mono text-gray-500">FROM</span>
+                      <span className="font-mono text-humana-green font-semibold">node:20-alpine</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-humana-green font-semibold px-1">
+                      <CheckCircle2 size={10} />LTS — Supported &amp; Compliant
+                    </div>
                   </div>
                 )}
               </div>
@@ -373,10 +497,10 @@ export default function CVITWorkflowAgent() {
             {/* GitHub & Actions */}
             <div className="flex flex-col gap-3">
               <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                <GitBranch size={12} />GitHub — prashant-vashisth/humana-aks-demo
+                <GitBranch size={12} />GitHub — prashant-vashisth/aks-nodeapp-demo
               </div>
 
-              <a href="https://github.com/prashant-vashisth/humana-aks-demo" target="_blank" rel="noreferrer"
+              <a href="https://github.com/prashant-vashisth/aks-nodeapp-demo" target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-xs text-humana-teal hover:underline font-medium">
                 <ExternalLink size={11} />View repo on GitHub
               </a>
@@ -386,7 +510,7 @@ export default function CVITWorkflowAgent() {
                 <button onClick={injectVulnerability} disabled={injecting}
                   className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
                   {injecting ? <Loader2 size={14} className="animate-spin" /> : <AlertTriangle size={14} />}
-                  {injecting ? 'Creating PR...' : 'Inject Vulnerability → GitHub PR'}
+                  {injecting ? 'Creating PR...' : 'Inject EOL Runtime → GitHub PR'}
                 </button>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -443,13 +567,13 @@ export default function CVITWorkflowAgent() {
             {/* CVE summary */}
             <div className="flex flex-col gap-3">
               <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                <Lock size={12} />Vulnerabilities Introduced
+                <Lock size={12} />Compliance Violations Detected
               </div>
               {injected?.cves ? (
                 <CveTable cves={injected.cves} />
               ) : (
                 <div className="flex-1 flex items-center justify-center text-center text-gray-400 text-xs py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                  Click "Inject Vulnerability" to create a<br />GitHub PR with known CVEs
+                  Click "Inject Vulnerability" to simulate<br />an EOL runtime compliance violation
                 </div>
               )}
             </div>
@@ -474,12 +598,12 @@ export default function CVITWorkflowAgent() {
                   {!p1Incident ? (
                     <div className="flex flex-col gap-3">
                       <p className="text-sm text-gray-600 leading-relaxed">
-                        Vulnerable build is running on AKS. Click below to create a real <strong>P1 Security Incident</strong> in ServiceNow — the CVIT polling agent will detect it and automatically trigger the remediation workflow.
+                        EOL runtime build is running on AKS. Click below to create a real <strong>P1 Compliance Incident</strong> in ServiceNow — the CVIT polling agent will detect it and automatically trigger the remediation workflow.
                       </p>
                       <button onClick={createP1} disabled={creatingP1 || !deployed}
                         className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-sm font-semibold px-5 py-3 rounded-lg transition-colors">
                         {creatingP1 ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
-                        {creatingP1 ? 'Creating P1 in ServiceNow...' : 'Create ServiceNow P1 Incident'}
+                        {creatingP1 ? 'Creating P1 in ServiceNow...' : 'Create ServiceNow P1 Compliance Incident'}
                       </button>
                       {!deployed && <p className="text-xs text-gray-400 text-center">Deploy to AKS first (Stage 1)</p>}
                     </div>
@@ -533,13 +657,13 @@ export default function CVITWorkflowAgent() {
                   <div className="font-bold text-gray-600 mb-3 uppercase tracking-widest">P1 Incident Details</div>
                   <div className="space-y-2 text-gray-600">
                     <div><span className="font-semibold">Instance:</span> dev283388.service-now.com</div>
-                    <div><span className="font-semibold">Priority:</span> P1 — Critical Security</div>
-                    <div><span className="font-semibold">Category:</span> Security / Vulnerability</div>
+                    <div><span className="font-semibold">Priority:</span> P1 — Critical Compliance</div>
+                    <div><span className="font-semibold">Category:</span> Security / EOL Runtime</div>
                     <div><span className="font-semibold">Cluster:</span> humana-prod-aks</div>
                     <div><span className="font-semibold">Namespace:</span> claims-processing</div>
                     <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="font-semibold mb-1">Vulnerable packages flagged:</div>
-                      {(injected?.cves || [{ pkg: 'minimist@1.2.5', cve: 'CVE-2021-44906', cvss: 9.8 }]).map(c => (
+                      <div className="font-semibold mb-1">Violations detected:</div>
+                      {(injected?.cves || [{ pkg: 'node:16-alpine', cve: 'EOL-2023-NODE16', cvss: 9.1 }]).map(c => (
                         <div key={c.cve} className="flex items-center gap-2 py-0.5">
                           <span className="text-red-500">●</span>
                           <span className="font-mono">{c.pkg}</span>
@@ -563,7 +687,10 @@ export default function CVITWorkflowAgent() {
             <motion.div ref={stage3Ref} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card-humana overflow-hidden">
               <div className="bg-gradient-to-r from-humana-navy to-[#003d7a] px-5 py-3 flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-black">3</div>
-                <span className="text-white font-bold text-sm">CVIT Multi-Agent Orchestration — LangChain + Groq</span>
+                <span className="text-white font-bold text-sm">CVIT Multi-Agent Orchestration — LangChain + Claude Opus 4</span>
+                {cvitId && (
+                  <span className="bg-white/10 border border-white/20 text-white/90 text-xs font-mono px-2 py-0.5 rounded-full">{cvitId}</span>
+                )}
                 {isRunning && <LiveIndicator label="AGENTS RUNNING" color="green" />}
                 {isCompleted && <span className="ml-auto text-humana-green text-xs font-bold flex items-center gap-1"><CheckCircle2 size={12} />All 10 steps complete</span>}
               </div>
@@ -586,100 +713,192 @@ export default function CVITWorkflowAgent() {
                 </div>
               )}
 
-              {/* Progress bar */}
-              {progress > 0 && progress < 100 && (
+
+              {/* Live Artifacts bar — all clickable links */}
+              {(artifacts.change || artifacts.incident || artifacts.pr || artifacts.kb || p1Incident) && (
                 <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-gray-600 font-semibold">Remediation Progress — Agent monitoring live</span>
-                    <span className="text-humana-green font-bold">{progress}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} className="h-full bg-humana-green rounded-full" />
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Live Artifacts — click to open</div>
+                  <div className="flex flex-wrap gap-2">
+                    {/* P1 Incident (Stage 2) */}
+                    {p1Incident && (
+                      <a href={p1Incident.url || '#'} target="_blank" rel="noreferrer"
+                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs border transition-colors hover:shadow-sm ${p1Closed ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300 hover:bg-red-100'}`}>
+                        <Bell size={12} className={p1Closed ? 'text-humana-green' : 'text-red-600'} />
+                        <span className={`font-semibold ${p1Closed ? 'text-humana-green' : 'text-red-700'}`}>{p1Incident.number}</span>
+                        <span className="text-gray-500">P1 Incident</span>
+                        <span className={`font-bold ${p1Closed ? 'text-humana-green' : 'text-red-500'}`}>{p1Closed ? '✓ Closed' : '● Open'}</span>
+                        <ExternalLink size={9} className="text-gray-400" />
+                      </a>
+                    )}
+                    {/* Change Request */}
+                    {artifacts.change && (
+                      <a href={artifacts.change.url || '#'} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-2 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg px-3 py-1.5 text-xs transition-colors hover:shadow-sm">
+                        <FileText size={12} className="text-amber-600" />
+                        <span className="text-amber-700 font-semibold">{artifacts.change.number}</span>
+                        <span className="text-gray-500">Change Request</span>
+                        <span className={`font-semibold ${artifacts.change.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.change.source?.includes('live') ? '● Live' : '○ Demo'}</span>
+                        <ExternalLink size={9} className="text-gray-400" />
+                      </a>
+                    )}
+                    {/* Work Package Incident */}
+                    {artifacts.incident && (
+                      <a href={artifacts.incident.url || '#'} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-2 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg px-3 py-1.5 text-xs transition-colors hover:shadow-sm">
+                        <Shield size={12} className="text-blue-600" />
+                        <span className="text-blue-700 font-semibold">{artifacts.incident.number}</span>
+                        <span className="text-gray-500">Work Package</span>
+                        <span className={`font-semibold ${artifacts.incident.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.incident.source?.includes('live') ? '● Live' : '○ Demo'}</span>
+                        <ExternalLink size={9} className="text-gray-400" />
+                      </a>
+                    )}
+                    {/* Fix PR + Code Diff */}
+                    {artifacts.pr && artifacts.pr.url !== '#' && (
+                      <>
+                        <a href={artifacts.pr.url} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 bg-purple-50 border border-purple-200 hover:bg-purple-100 rounded-lg px-3 py-1.5 text-xs transition-colors hover:shadow-sm">
+                          <GitPullRequest size={12} className="text-purple-600" />
+                          <span className="text-purple-700 font-semibold">PR #{artifacts.pr.number}</span>
+                          <span className="text-gray-500">Fix PR</span>
+                          <span className={`font-semibold ${artifacts.pr.source === 'github_live' ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.pr.source === 'github_live' ? '● Live' : '○ Demo'}</span>
+                          <ExternalLink size={9} className="text-gray-400" />
+                        </a>
+                        <a href={`${artifacts.pr.url}/files`} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg px-3 py-1.5 text-xs transition-colors hover:shadow-sm">
+                          <GitBranch size={12} className="text-indigo-600" />
+                          <span className="text-indigo-700 font-semibold">Code Diff</span>
+                          <span className="text-gray-500">See AI changes</span>
+                          <ExternalLink size={9} className="text-gray-400" />
+                        </a>
+                      </>
+                    )}
+                    {/* KB Article */}
+                    {artifacts.kb && (
+                      <a href={artifacts.kb.url || '#'} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-2 bg-green-50 border border-green-200 hover:bg-green-100 rounded-lg px-3 py-1.5 text-xs transition-colors hover:shadow-sm">
+                        <FileText size={12} className="text-humana-green" />
+                        <span className="text-humana-green font-semibold">{artifacts.kb.number}</span>
+                        <span className="text-gray-500">KB Article</span>
+                        <ExternalLink size={9} className="text-gray-400" />
+                      </a>
+                    )}
+                    {/* Latest GH Actions deploy run */}
+                    {latestRun?.url && (
+                      <a href={latestRun.url} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-2 bg-gray-100 border border-gray-300 hover:bg-gray-200 rounded-lg px-3 py-1.5 text-xs transition-colors hover:shadow-sm">
+                        <Activity size={12} className={latestRun.status === 'in_progress' ? 'text-amber-500 animate-pulse' : 'text-gray-500'} />
+                        <span className="text-gray-700 font-semibold">AKS Deploy</span>
+                        <span className={`font-semibold ${latestRun.conclusion === 'success' ? 'text-humana-green' : latestRun.status === 'in_progress' ? 'text-amber-600' : latestRun.conclusion === 'failure' ? 'text-red-500' : 'text-gray-400'}`}>
+                          {latestRun.status === 'in_progress' ? '⟳ Running' : latestRun.conclusion === 'success' ? '✓ Done' : latestRun.conclusion === 'failure' ? '✗ Failed' : latestRun.status}
+                        </span>
+                        <ExternalLink size={9} className="text-gray-400" />
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Artifacts bar */}
-              {(artifacts.change || artifacts.incident || artifacts.pr || artifacts.kb) && (
-                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex flex-wrap gap-3">
-                  {artifacts.change && (
-                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
-                      <FileText size={12} className="text-amber-600" /><span className="text-amber-700 font-semibold">{artifacts.change.number}</span>
-                      <span className="text-gray-500">Change</span>
-                      <span className={`font-semibold ${artifacts.change.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.change.source?.includes('live') ? '● Live' : '○'}</span>
-                    </div>
-                  )}
-                  {artifacts.incident && (
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs">
-                      <Shield size={12} className="text-blue-600" /><span className="text-blue-700 font-semibold">{artifacts.incident.number}</span>
-                      <span className="text-gray-500">Incident</span>
-                      <span className={`font-semibold ${artifacts.incident.source?.includes('live') ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.incident.source?.includes('live') ? '● Live' : '○'}</span>
-                    </div>
-                  )}
-                  {artifacts.pr && (
-                    <a href={artifacts.pr.url !== '#' ? artifacts.pr.url : undefined} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 text-xs hover:bg-purple-100">
-                      <GitPullRequest size={12} className="text-purple-600" /><span className="text-purple-700 font-semibold">PR #{artifacts.pr.number}</span>
-                      <span className="text-gray-500">Fix PR</span>
-                      <span className={`font-semibold ${artifacts.pr.source === 'github_live' ? 'text-humana-green' : 'text-gray-400'}`}>{artifacts.pr.source === 'github_live' ? '● Live' : '○'}</span>
-                    </a>
-                  )}
-                  {artifacts.kb && (
-                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs">
-                      <FileText size={12} className="text-humana-green" /><span className="text-humana-green font-semibold">{artifacts.kb.number}</span>
-                      <span className="text-gray-500">KB Article</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex h-[calc(100vh-200px)] min-h-96">
-                {/* LEFT — step timeline */}
-                <div className="w-52 bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0">
-                  <div className="px-3 pt-3 pb-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Workflow Steps</div>
-                  {WORKFLOW_STEPS.map(step => {
-                    const state = stepStates[step.id]
-                    const isCurrent = currentStep === step.index
-                    return (
-                      <div key={step.id} className={`flex items-start gap-2 px-3 py-2.5 mx-1.5 rounded-lg mb-0.5 transition-all ${isCurrent ? 'bg-humana-green/10 border border-humana-green/30' : ''}`}>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${state === 'done' ? 'bg-humana-green' : state === 'active' || isCurrent ? 'bg-humana-green/20 border-2 border-humana-green' : state === 'error' ? 'bg-red-500' : 'bg-gray-200'}`}>
-                          {state === 'done' ? <CheckCircle2 size={10} className="text-white" /> :
-                           state === 'active' || isCurrent ? <Loader2 size={10} className="text-humana-green animate-spin" /> :
-                           <span className="text-xs text-gray-400 font-bold">{step.index}</span>}
+              {/* Horizontal 10-step pipeline tracker */}
+              <div className="bg-white border-b border-gray-100 px-5 py-3 flex items-center">
+                {WORKFLOW_STEPS.map((step, i) => {
+                  const state    = stepStates[step.id]
+                  const isActive = currentStep === step.index || state === 'active'
+                  const isDone   = state === 'done' || (currentStep > step.index && currentStep > 0)
+                  const isErr    = state === 'error'
+                  const lineGreen = isDone && i < WORKFLOW_STEPS.length - 1
+                  return (
+                    <div key={step.id} className="flex items-center flex-1 min-w-0">
+                      <div className="flex flex-col items-center gap-0.5 shrink-0" title={step.label}>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold transition-all ${
+                          isDone   ? 'bg-humana-green text-white' :
+                          isActive ? 'border-2 border-humana-green bg-white' :
+                          isErr    ? 'bg-red-500 text-white' :
+                                     'bg-gray-100 text-gray-400'
+                        }`}>
+                          {isDone   ? <CheckCircle2 size={11} className="text-white" /> :
+                           isActive ? <Loader2 size={10} className="text-humana-green animate-spin" /> :
+                                      <span style={{ fontSize: '7px' }} className="leading-none">{step.agent.replace('Agent', '').slice(0, 4)}</span>}
                         </div>
-                        <div>
-                          <div className={`text-xs font-semibold leading-tight ${isCurrent ? 'text-humana-green' : state === 'done' ? 'text-gray-400' : 'text-gray-500'}`}>{step.label}</div>
-                          {step.human && <span className="text-xs text-amber-600 font-semibold">👤 Human-in-loop</span>}
+                        <div className={`text-center leading-tight truncate max-w-14 ${
+                          isDone ? 'text-humana-green' : isActive ? 'text-humana-green font-semibold' : 'text-gray-400'
+                        }`} style={{ fontSize: '9px' }}>
+                          {step.human ? <span className="text-amber-500">👤</span> : null}{step.agent.replace('Agent', '')}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                      {i < WORKFLOW_STEPS.length - 1 && (
+                        <div className={`flex-1 h-px mx-1 transition-colors ${lineGreen ? 'bg-humana-green' : 'bg-gray-200'}`} />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
 
-                {/* CENTER — agent log stream */}
-                <div className="flex-1 overflow-y-auto bg-gray-50 p-4 font-mono text-xs">
+              <div className="flex h-[calc(100vh-260px)] min-h-96">
+                {/* CENTER — Agent Activity Feed */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
                   {logs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
                       <Loader2 size={32} className="text-gray-200 animate-spin" />
                       <div className="text-center">
-                        <div className="text-gray-500 font-semibold">Agents initialising...</div>
-                        <div className="text-gray-400 mt-1">ServiceNow P1 ticket confirmed — starting workflow</div>
+                        <div className="text-gray-600 font-semibold text-sm">Workflow started</div>
+                        <div className="text-gray-400 text-xs mt-1">Step 1 · ScannerAgent scanning claims-processing namespace...</div>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-0.5">
-                      {logs.map((entry, i) => (
-                        <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-2 leading-relaxed">
-                          <span className="text-gray-400 shrink-0 w-20 text-right">{new Date(entry.ts).toLocaleTimeString()}</span>
-                          <span className={`font-bold shrink-0 w-28 truncate ${AGENT_COLOR[entry.agent] || 'text-humana-teal'}`}>[{entry.agent}]</span>
-                          <span className={`shrink-0 w-20 ${LOG_COLOR[entry.type] || 'text-gray-500'}`}>{entry.type}</span>
-                          <span className="text-gray-700 flex-1 break-all">{entry.message}</span>
-                          {entry.data && entry.type === 'tool_result' && (
-                            <span className="text-humana-green text-xs shrink-0">✓ {Object.keys(entry.data).slice(0,3).join(', ')}</span>
+                    <div className="space-y-3">
+                      {WORKFLOW_STEPS.map(step => {
+                        const state = stepStates[step.id]
+                        const isActive = currentStep === step.index
+                        const isDone = state === 'done'
+                        if (!isActive && !isDone && state !== 'active') return null
+                        return (
+                          <AgentStepCard
+                            key={step.id}
+                            step={step}
+                            isActive={isActive || state === 'active'}
+                            isDone={isDone}
+                            latestLog={stepLogs[step.id]}
+                            stepArtifacts={getStepArtifacts(step)}
+                          />
+                        )
+                      })}
+
+                      {/* AKS rolling deploy progress inside monitor step */}
+                      {progress > 0 && (
+                        <div className="bg-white rounded-xl border border-blue-200 px-4 py-3">
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="text-gray-700 font-semibold flex items-center gap-1.5">
+                              <Activity size={12} className="text-blue-500" />AKS Rolling Deployment
+                            </span>
+                            <span className={`font-bold ${progress === 100 ? 'text-humana-green' : 'text-blue-600'}`}>{progress}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.5 }} className="h-full bg-humana-green rounded-full" />
+                          </div>
+                          {stepLogs['monitor'] && (
+                            <div className="text-xs text-gray-500 font-mono mt-1.5 line-clamp-1">{stepLogs['monitor'].message}</div>
                           )}
-                        </motion.div>
-                      ))}
+                        </div>
+                      )}
+
                       <div ref={logEndRef} />
+
+                      {/* Collapsible raw logs */}
+                      <details className="bg-white rounded-xl border border-gray-200 overflow-hidden text-xs">
+                        <summary className="px-4 py-2.5 text-gray-500 cursor-pointer hover:text-gray-700 font-semibold flex items-center gap-2 select-none">
+                          <RefreshCw size={11} />Full agent logs ({logs.length} entries)
+                        </summary>
+                        <div className="p-3 bg-gray-900 max-h-64 overflow-y-auto space-y-0.5 font-mono">
+                          {logs.map((entry, i) => (
+                            <div key={i} className="flex items-start gap-2 leading-relaxed">
+                              <span className="text-gray-500 shrink-0 w-20 text-right">{new Date(entry.ts).toLocaleTimeString()}</span>
+                              <span className={`font-bold shrink-0 w-28 truncate ${AGENT_COLOR[entry.agent] || 'text-cyan-400'}`}>[{entry.agent}]</span>
+                              <span className={`shrink-0 w-20 ${LOG_COLOR[entry.type] || 'text-gray-400'}`}>{entry.type}</span>
+                              <span className="text-gray-200 flex-1 break-all">{entry.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                   )}
                 </div>
@@ -729,19 +948,22 @@ export default function CVITWorkflowAgent() {
                           <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
                           <span className="text-blue-700 font-bold text-sm">Confirm Execution</span>
                         </div>
-                        <p className="text-xs text-gray-700 mb-3">Work package ready. Fix PR created on GitHub. Confirm to deploy remediation to AKS.</p>
-                        {humanPending.pr && (
-                          <div className="flex items-center gap-2 mb-3 text-xs">
-                            <GitPullRequest size={11} className="text-purple-600" />
-                            <span className="text-gray-600">PR #{humanPending.pr.number}</span>
-                            <span className={humanPending.pr.source === 'github_live' ? 'text-humana-green font-semibold' : 'text-gray-400'}>
-                              {humanPending.pr.source === 'github_live' ? '● Live' : '○ Demo'}
-                            </span>
+                        <p className="text-xs text-gray-700 mb-3">AI-generated fix PR is ready. Review the code changes then confirm zero-downtime rolling deployment to AKS.</p>
+                        {humanPending.pr && humanPending.pr.url !== '#' && (
+                          <div className="flex flex-col gap-1.5 mb-3">
+                            <a href={humanPending.pr.url} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-2 text-xs text-purple-600 hover:underline font-semibold">
+                              <GitPullRequest size={11} />PR #{humanPending.pr.number} — View on GitHub <ExternalLink size={9} />
+                            </a>
+                            <a href={`${humanPending.pr.url}/files`} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-2 text-xs text-indigo-600 hover:underline font-semibold">
+                              <GitBranch size={11} />Review code diff — AI-generated fix <ExternalLink size={9} />
+                            </a>
                           </div>
                         )}
                         <button onClick={handleExecute}
                           className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg">
-                          <Play size={12} fill="currentColor" />Deploy Fix to AKS
+                          <Play size={12} fill="currentColor" />Confirm — Deploy Fix to AKS
                         </button>
                       </motion.div>
                     )}
@@ -753,13 +975,60 @@ export default function CVITWorkflowAgent() {
                         <CheckCircle2 size={16} className="text-humana-green" />
                         <span className="text-humana-green font-bold text-sm">Fully Remediated</span>
                       </div>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="text-humana-green font-semibold">✓ All 10 steps complete</div>
-                        {artifacts.change   && <div className="text-gray-500">📋 Change: <span className="font-mono text-gray-800">{artifacts.change.number}</span></div>}
-                        {artifacts.incident && <div className="text-gray-500">🎫 Incident: <span className="font-mono text-gray-800">{artifacts.incident.number}</span></div>}
-                        {artifacts.pr       && <div className="text-gray-500">🔀 Fix PR: <span className="font-mono text-gray-800">#{artifacts.pr.number}</span></div>}
-                        {artifacts.kb       && <div className="text-gray-500">📚 KB: <span className="font-mono text-gray-800">{artifacts.kb.number}</span></div>}
-                        {p1Incident         && <div className="text-gray-500">🚨 P1 Resolved: <span className="font-mono text-gray-800">{p1Incident.number}</span></div>}
+                      <div className="space-y-2 text-xs">
+                        <div className="text-humana-green font-semibold mb-2">✓ All 10 steps complete — zero downtime</div>
+                        {p1Incident && (
+                          <a href={p1Incident.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline">
+                            <Bell size={10} className="text-humana-green shrink-0" />
+                            <span className="text-gray-500">P1 Incident</span>
+                            <span className="font-mono text-gray-800 flex-1">{p1Incident.number}</span>
+                            <span className="text-humana-green font-bold">Closed ↗</span>
+                          </a>
+                        )}
+                        {artifacts.change && (
+                          <a href={artifacts.change.url || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline">
+                            <FileText size={10} className="text-amber-600 shrink-0" />
+                            <span className="text-gray-500">Change Req</span>
+                            <span className="font-mono text-gray-800 flex-1">{artifacts.change.number}</span>
+                            <ExternalLink size={9} className="text-gray-400" />
+                          </a>
+                        )}
+                        {artifacts.incident && (
+                          <a href={artifacts.incident.url || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline">
+                            <Shield size={10} className="text-blue-600 shrink-0" />
+                            <span className="text-gray-500">Work Pkg</span>
+                            <span className="font-mono text-gray-800 flex-1">{artifacts.incident.number}</span>
+                            <ExternalLink size={9} className="text-gray-400" />
+                          </a>
+                        )}
+                        {artifacts.pr && artifacts.pr.url !== '#' && (
+                          <>
+                            <a href={artifacts.pr.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline">
+                              <GitPullRequest size={10} className="text-purple-600 shrink-0" />
+                              <span className="text-gray-500">Fix PR</span>
+                              <span className="font-mono text-gray-800 flex-1">#{artifacts.pr.number}</span>
+                              <ExternalLink size={9} className="text-gray-400" />
+                            </a>
+                            <a href={`${artifacts.pr.url}/files`} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline pl-4">
+                              <GitBranch size={10} className="text-indigo-500 shrink-0" />
+                              <span className="text-indigo-600 font-semibold">View code diff ↗</span>
+                            </a>
+                          </>
+                        )}
+                        {artifacts.kb && (
+                          <a href={artifacts.kb.url || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:underline">
+                            <FileText size={10} className="text-humana-green shrink-0" />
+                            <span className="text-gray-500">KB Article</span>
+                            <span className="font-mono text-gray-800 flex-1">{artifacts.kb.number}</span>
+                            <ExternalLink size={9} className="text-gray-400" />
+                          </a>
+                        )}
+                        {p1Closed?.notes && (
+                          <div className="mt-2 pt-2 border-t border-green-200">
+                            <div className="text-gray-500 font-semibold mb-1">AI Closure Notes:</div>
+                            <div className="text-gray-600 leading-relaxed italic">{p1Closed.notes.slice(0, 200)}{p1Closed.notes.length > 200 ? '…' : ''}</div>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -767,7 +1036,7 @@ export default function CVITWorkflowAgent() {
                   <div className="px-4 pt-2 mt-auto">
                     <div className="text-xs font-bold text-gray-400 mb-2 uppercase">Stack</div>
                     <div className="space-y-1.5 text-xs">
-                      {[['Orchestrator','LangGraph StateGraph'],['LLM','Groq Llama 4 Scout'],['Tools','Groq Function Calling'],['CVE Data','NVD API — Live'],['Ticketing','ServiceNow Live'],['Source','GitHub Real PRs'],['Infra','Azure AKS']].map(([k,v]) => (
+                      {[['Orchestrator','LangGraph StateGraph'],['LLM','Claude Opus 4.7'],['Tools','Claude Tool Use'],['CVE Data','NVD API — Live'],['Ticketing','ServiceNow Live'],['Source','GitHub Real PRs'],['Infra','Azure AKS']].map(([k,v]) => (
                         <div key={k} className="flex items-center justify-between">
                           <span className="text-gray-400">{k}</span>
                           <span className="text-gray-600 font-mono text-xs">{v}</span>

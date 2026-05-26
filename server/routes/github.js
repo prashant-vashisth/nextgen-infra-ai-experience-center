@@ -10,7 +10,7 @@ function ghHeaders() {
 
 router.get('/workflow-runs', async (req, res) => {
   const owner = process.env.GITHUB_REPO_OWNER;
-  const repo = process.env.GITHUB_REPO_NAME || 'humana-aks-demo';
+  const repo = process.env.GITHUB_REPO_NAME || 'aks-nodeapp-demo';
 
   if (!owner || !process.env.GITHUB_TOKEN) {
     return res.json({ runs: getMockWorkflowRuns(), mode: 'demo' });
@@ -42,7 +42,7 @@ router.post('/trigger-workflow', async (req, res) => {
 router.post('/create-pr', async (req, res) => {
   const { title, body, cveId, patchContent } = req.body;
   const owner = process.env.GITHUB_REPO_OWNER;
-  const repo = process.env.GITHUB_REPO_NAME || 'humana-aks-demo';
+  const repo = process.env.GITHUB_REPO_NAME || 'aks-nodeapp-demo';
 
   if (!owner || !process.env.GITHUB_TOKEN) {
     await new Promise(r => setTimeout(r, 1000));

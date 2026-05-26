@@ -71,7 +71,7 @@ export default function GroqStream({ prompt, systemPrompt, onComplete, autoStart
           {isStreaming ? (
             <>
               <Loader2 size={12} className="animate-spin text-humana-green" />
-              <span className="text-humana-green">Groq AI generating response...</span>
+              <span className="text-humana-green">Claude Opus 4 generating response...</span>
             </>
           ) : duration ? (
             <>

@@ -8,7 +8,7 @@ const headers = {
 };
 
 const OWNER = process.env.GITHUB_REPO_OWNER;
-const REPO = process.env.GITHUB_REPO_NAME || 'humana-aks-demo';
+const REPO = process.env.GITHUB_REPO_NAME || 'aks-nodeapp-demo';
 const BASE = `https://api.github.com/repos/${OWNER}/${REPO}`;
 
 // The YAML uses ${{ }} syntax — must be a plain string, not a template literal
@@ -121,7 +121,7 @@ async function main() {
   try {
     await upsertFile('.github/workflows/ida-pipeline.yml', WORKFLOW_YAML, 'ci: IDA pipeline workflow for demo');
     await upsertFile('main.tf', TERRAFORM_HCL, 'feat: compliant AKS Terraform config');
-    await upsertFile('README.md', `# humana-aks-demo\nAKS policy configurations managed by Humana Platform Engineering.\nIDA pipeline validates Terraform compliance before apply.\n`, 'docs: add README');
+    await upsertFile('README.md', `# aks-nodeapp-demo\nAKS policy configurations managed by Humana Platform Engineering.\nIDA pipeline validates Terraform compliance before apply.\n`, 'docs: add README');
     console.log('\n✅ GitHub repo setup complete');
     console.log(`   Workflow: https://github.com/${OWNER}/${REPO}/actions`);
   } catch (err) {

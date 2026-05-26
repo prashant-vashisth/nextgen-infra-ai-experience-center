@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   GitBranch, Server, Shield, Activity, ChevronRight, Zap, Clock,
   ExternalLink, Building2, Cpu,
 } from 'lucide-react'
+import UseCaseDrawer from '../components/UseCaseDrawer'
+import ITOpsCommandCenter from '../components/ITOpsCommandCenter'
 
 // ─── Tower taxonomy ───────────────────────────────────────────────────────────
 //
@@ -82,22 +84,22 @@ const USE_CASES = [
   { id: 1,  domain: 'Automation Engineering', title: 'Intelligent Operation Support & Troubleshooting Agent', category: 'Action Executor',        problem: 'Manual Terraform/Ansible troubleshooting takes 4+ hrs per incident',            beforeHrs: 480,  afterHrs: 144, tools: ['Terraform Cloud','Ansible','Temporal'],                        live: false, subcategories: ['automation-engineering','toc','aoc'] },
   { id: 2,  domain: 'Automation Engineering', title: 'Platform Vulnerability Agent',                         category: 'CVE Remediation',          problem: 'CVE backlog grows faster than teams can manually remediate',                   beforeHrs: 340,  afterHrs: 85,  tools: ['Prisma Cloud','GitHub','ServiceNow'],                          live: false, subcategories: ['security-engineering','automation-engineering','iss'] },
   { id: 3,  domain: 'Automation Engineering', title: 'Platform Build Agent',                                 category: 'Module Onboarding',        problem: 'Module & tenant onboarding requires 2 weeks manual effort',                   beforeHrs: 180,  afterHrs: 22,  tools: ['GitHub','Terraform','Azure DevOps'],                           live: false, subcategories: ['automation-engineering','cloud-engineering','cape'] },
-  { id: 4,  domain: 'Automation Engineering', title: 'Code Base Administration',                             category: 'AI Bug Fixes',             problem: 'Bug triage and patching creates developer context-switching overhead',         beforeHrs: 220,  afterHrs: 66,  tools: ['GitHub','SonarQube','Groq AI'],                               live: false, subcategories: ['automation-engineering'] },
+  { id: 4,  domain: 'Automation Engineering', title: 'Code Base Administration',                             category: 'AI Bug Fixes',             problem: 'Bug triage and patching creates developer context-switching overhead',         beforeHrs: 220,  afterHrs: 66,  tools: ['GitHub','SonarQube','Claude Opus 4'],                               live: false, subcategories: ['automation-engineering'] },
   { id: 5,  domain: 'Automation Engineering', title: 'Compliance Agent — Secret & Credential Remediation',   category: 'Compliance',               problem: 'Exposed secrets in repos discovered too late, manual remediation slow',        beforeHrs: 160,  afterHrs: 32,  tools: ['GitHub','HashiCorp Vault','Azure Key Vault'],                 live: false, subcategories: ['security-engineering','automation-engineering','iss'] },
   { id: 6,  domain: 'Automation Engineering', title: 'Azure/GCP Onboarding — AI Validation',                 category: 'Cloud Onboarding',         problem: 'Cloud subscription onboarding requires 3-day manual checklist',               beforeHrs: 120,  afterHrs: 18,  tools: ['Azure ARM','GCP APIs','Terraform'],                           live: true, path: '/demo/cloud-onboarding-agent', subcategories: ['cloud-engineering','automation-engineering','cape'] },
   { id: 7,  domain: 'Automation Engineering', title: 'Azure/GCP Onboarding — Code Optimization',             category: 'Code Optimization',        problem: 'IaC modules contain inefficient patterns increasing cloud spend 23%',          beforeHrs: 200,  afterHrs: 50,  tools: ['Azure Advisor','Terraform','GitHub'],                         live: false, subcategories: ['cloud-engineering','automation-engineering','finops'] },
   { id: 8,  domain: 'Automation Engineering', title: 'Configuration Template Creation',                      category: 'Scaffolding Agent',        problem: 'New configuration templates take 8 hrs of senior engineer time each',         beforeHrs: 96,   afterHrs: 12,  tools: ['GitHub','Terraform','Ansible'],                               live: false, subcategories: ['automation-engineering'] },
-  { id: 9,  domain: 'Automation Engineering', title: 'IDA Workflow Assist Agent',                            category: 'Guided Explainability',    problem: 'IDA pipeline failures generate cryptic errors requiring expert analysis',      beforeHrs: 240,  afterHrs: 48,  tools: ['GitHub Actions','IDA Engine','ServiceNow KB','Groq AI'],      live: true,  path: '/demo/ida-workflow-agent', subcategories: ['automation-engineering','toc','aoc'] },
+  { id: 9,  domain: 'Automation Engineering', title: 'APG Workflow Assist Agent',                            category: 'Guided Explainability',    problem: 'Terraform pipeline failures generate cryptic errors requiring expert analysis', beforeHrs: 240,  afterHrs: 48,  tools: ['GitHub Actions','APG Engine','ServiceNow KB','Claude Opus 4'],      live: true,  path: '/demo/apg-agent', subcategories: ['automation-engineering','toc','aoc'] },
   { id: 10, domain: 'Automation Engineering', title: 'Terraform Debug Agent',                                category: 'Debug Automation',         problem: 'Terraform state corruption and plan failures require expert debugging',        beforeHrs: 180,  afterHrs: 36,  tools: ['Terraform Cloud','GitHub','Splunk'],                          live: false, subcategories: ['automation-engineering','splunk'] },
   { id: 11, domain: 'Automation Engineering', title: 'Validate Unit & Integration Test Results',              category: 'Test Validation',          problem: 'Test result analysis consumes 20% of developer sprint time',                  beforeHrs: 140,  afterHrs: 28,  tools: ['GitHub Actions','pytest','SonarQube'],                        live: false, subcategories: ['automation-engineering'] },
   { id: 12, domain: 'Automation Engineering', title: 'API Handler Issue Remediation',                        category: 'API Operations',           problem: 'API handler failures cause cascading downstream outages',                     beforeHrs: 160,  afterHrs: 40,  tools: ['Kong','Dynatrace','ServiceNow'],                              live: false, subcategories: ['aoc','dynatrace','apigee','graphql','datapowr'] },
-  { id: 13, domain: 'Automation Engineering', title: 'AI-Driven Dependency Risk Management',                 category: 'Risk Management',          problem: 'Outdated dependencies with known CVEs accumulate undetected',                 beforeHrs: 200,  afterHrs: 50,  tools: ['Snyk','GitHub','Groq AI'],                                    live: true, path: '/demo/dependency-risk-agent', subcategories: ['security-engineering','automation-engineering','iss'] },
+  { id: 13, domain: 'Automation Engineering', title: 'AI-Driven Dependency Risk Management',                 category: 'Risk Management',          problem: 'Outdated dependencies with known CVEs accumulate undetected',                 beforeHrs: 200,  afterHrs: 50,  tools: ['Snyk','GitHub','Claude Opus 4'],                                    live: true, path: '/demo/dependency-risk-agent', subcategories: ['security-engineering','automation-engineering','iss'] },
   { id: 14, domain: 'Automation Engineering', title: 'Capacity Insight and Recommendation',                  category: 'Capacity Planning',        problem: 'Manual capacity forecasting leads to 35% over-provisioning',                  beforeHrs: 120,  afterHrs: 24,  tools: ['Azure Monitor','Dynatrace','Power BI'],                       live: false, subcategories: ['finops','dynatrace','toc'] },
   { id: 15, domain: 'Automation Engineering', title: 'Conversational Support Agent for Cloud Provisioning',  category: 'Conversational AI',        problem: 'L1 cloud provisioning tickets require senior engineer intervention',           beforeHrs: 300,  afterHrs: 60,  tools: ['MS Teams','ServiceNow','Azure ARM'],                          live: false, subcategories: ['enterprise-itsm','cloud-engineering'] },
 
   // INFRA OPS / ESC
   { id: 16, domain: 'Infra Ops / ESC',        title: 'Container Lifecycle Management',                       category: 'Container Ops',            problem: 'Manual container image patching across 200+ services takes weeks',            beforeHrs: 400,  afterHrs: 80,  tools: ['AKS','ACR','Twistlock'],                                      live: false, subcategories: ['compute-storage','cloud-engineering','cape'] },
-  { id: 17, domain: 'Infra Ops / ESC',        title: 'Design Document Generation',                           category: 'Documentation AI',         problem: 'Architecture docs are outdated within weeks, never reflect real state',       beforeHrs: 200,  afterHrs: 20,  tools: ['Confluence','GitHub','Groq AI'],                              live: false, subcategories: ['automation-engineering'] },
+  { id: 17, domain: 'Infra Ops / ESC',        title: 'Design Document Generation',                           category: 'Documentation AI',         problem: 'Architecture docs are outdated within weeks, never reflect real state',       beforeHrs: 200,  afterHrs: 20,  tools: ['Confluence','GitHub','Claude Opus 4'],                              live: false, subcategories: ['automation-engineering'] },
   { id: 18, domain: 'Infra Ops / ESC',        title: 'AI-Led Quality Engineering — QA Validation',           category: 'QA Automation',            problem: 'QA cycle takes 3 weeks; regression coverage is only 47%',                    beforeHrs: 480,  afterHrs: 96,  tools: ['Selenium','Postman','Azure DevOps'],                          live: false, subcategories: ['automation-engineering'] },
   { id: 19, domain: 'Infra Ops / ESC',        title: 'CVIT Remediation',                                     category: 'Vulnerability Management', problem: 'CVIT backlog grows at 150 items/month with 40-day avg remediation',           beforeHrs: 600,  afterHrs: 120, tools: ['Qualys','ServiceNow','Ansible'],                              live: false, subcategories: ['security-engineering','iss'] },
   { id: 20, domain: 'Infra Ops / ESC',        title: 'Middleware Upgrade',                                   category: 'Upgrade Automation',       problem: 'Middleware upgrades require 6-week manual change windows',                    beforeHrs: 720,  afterHrs: 144, tools: ['Ansible','ServiceNow','Dynatrace'],                           live: false, subcategories: ['compute-storage','dynatrace'] },
@@ -119,7 +121,7 @@ const USE_CASES = [
   { id: 32, domain: 'Security Engineering',   title: 'Configuration Anomaly Detection',                      category: 'Security Monitoring',      problem: 'Config drift goes undetected for avg 18 days creating compliance gaps',      beforeHrs: 360,  afterHrs: 72,  tools: ['Prisma Cloud','Azure Policy','Splunk'],                       live: false, subcategories: ['security-engineering','iss','splunk'] },
   { id: 33, domain: 'Security Engineering',   title: 'Code Review / Refactoring & Bug Fixing',               category: 'Secure Code Review',       problem: 'Security code review backlogs cause 3-week delivery delays',                 beforeHrs: 280,  afterHrs: 56,  tools: ['SonarQube','Checkmarx','GitHub'],                             live: false, subcategories: ['security-engineering','automation-engineering'] },
   { id: 34, domain: 'Security Engineering',   title: 'Predictive Capacity Planning, Rightsizing & Demand Forecasting', category: 'FinOps AI',  problem: '35% cloud resources over-provisioned, wasting $2.4M annually',              beforeHrs: 240,  afterHrs: 48,  tools: ['Azure Advisor','Azure Cost','Turbonomic'],                    live: false, subcategories: ['finops'] },
-  { id: 35, domain: 'Security Engineering',   title: 'Cost Anomaly Detection, Budget Forecasting',           category: 'FinOps',                   problem: 'Cost spikes discovered 30+ days after occurrence on monthly bills',          beforeHrs: 180,  afterHrs: 36,  tools: ['Azure Cost Management','Power BI','Groq AI'],                live: true, path: '/demo/finops-cost-agent', subcategories: ['finops'] },
+  { id: 35, domain: 'Security Engineering',   title: 'Cost Anomaly Detection, Budget Forecasting',           category: 'FinOps',                   problem: 'Cost spikes discovered 30+ days after occurrence on monthly bills',          beforeHrs: 180,  afterHrs: 36,  tools: ['Azure Cost Management','Power BI','Claude Opus 4'],                live: true, path: '/demo/finops-cost-agent', subcategories: ['finops'] },
   { id: 36, domain: 'Security Engineering',   title: 'AKS Vulnerability & Compliance AI Remediation',        category: 'Container Security',       problem: 'CVE remediation cycle averages 47 days; HIPAA controls fail 26% of time',   beforeHrs: 480,  afterHrs: 96,  tools: ['Prisma Cloud','AKS','GitHub','NIST','HIPAA'],                 live: true,  path: '/demo/aks-vulnerability-agent', subcategories: ['security-engineering','cloud-engineering','cape'] },
 
   // ESC / ITSM
@@ -127,11 +129,12 @@ const USE_CASES = [
   { id: 38, domain: 'Infra Ops / ESC',        title: 'VSTS/Azure DevOps Access Request Automation',          category: 'Access Automation',        problem: 'ADO access requests have 3-day SLA; actual avg is 7 days',                  beforeHrs: 200,  afterHrs: 30,  tools: ['Azure DevOps','ServiceNow','Azure AD'],                       live: false, subcategories: ['enterprise-itsm','cloud-engineering'] },
   { id: 39, domain: 'Infra Ops / ESC',        title: 'GitHub Access Requests Automation',                    category: 'Access Automation',        problem: 'GitHub org access requests sit in queue for 5 days on average',             beforeHrs: 160,  afterHrs: 24,  tools: ['GitHub','ServiceNow','Azure AD'],                             live: false, subcategories: ['enterprise-itsm'] },
   { id: 40, domain: 'Infra Ops / ESC',        title: 'Docker Desktop License Requests Automation',           category: 'License Management',       problem: 'Docker Desktop license provisioning requires finance + IT approval chain',   beforeHrs: 120,  afterHrs: 12,  tools: ['ServiceNow','Docker','Azure AD'],                             live: false, subcategories: ['enterprise-itsm'] },
-  { id: 41, domain: 'Infra Ops / ESC',        title: 'AI RCA + CMDB Data Cleanup & Enrichment',              category: 'CMDB Health',              problem: 'CMDB health at 67% — 33% of CIs have missing attributes impacting ITSM',   beforeHrs: 640,  afterHrs: 128, tools: ['ServiceNow CMDB','Dynatrace','Groq AI'],                      live: true,  path: '/demo/rca-cmdb-agent', subcategories: ['incident-response','enterprise-itsm','dynatrace'] },
-  { id: 42, domain: 'Infra Ops / ESC',        title: 'Knowledge Fabric AI',                                  category: 'Knowledge Management',     problem: 'KB articles outdated 6 months avg; engineers waste 45 min/incident searching', beforeHrs: 480, afterHrs: 72,  tools: ['ServiceNow KB','Confluence','Groq AI'],                      live: false, subcategories: ['enterprise-itsm'] },
+  { id: 41, domain: 'Infra Ops / ESC',        title: 'AI RCA + CMDB Data Cleanup & Enrichment',              category: 'CMDB Health',              problem: 'CMDB health at 67% — 33% of CIs have missing attributes impacting ITSM',   beforeHrs: 640,  afterHrs: 128, tools: ['ServiceNow CMDB','Dynatrace','Claude Opus 4'],                      live: true,  path: '/demo/rca-cmdb-agent', subcategories: ['incident-response','enterprise-itsm','dynatrace'] },
+  { id: 42, domain: 'Infra Ops / ESC',        title: 'Knowledge Fabric AI',                                  category: 'Knowledge Management',     problem: 'KB articles outdated 6 months avg; engineers waste 45 min/incident searching', beforeHrs: 480, afterHrs: 72,  tools: ['ServiceNow KB','Confluence','Claude Opus 4'],                      live: false, subcategories: ['enterprise-itsm'] },
   { id: 43, domain: 'Infra Ops / ESC',        title: 'PCT Automation — Validation Task Management',          category: 'PCT Automation',           problem: 'PCT validation tasks take 8 days manually with 22% rework rate',             beforeHrs: 320,  afterHrs: 64,  tools: ['ServiceNow','GitHub','Azure DevOps'],                         live: false, subcategories: ['aoc','automation-engineering'] },
-  { id: 44, domain: 'Infra Ops / ESC',        title: 'PCT Automation — RCA Agent & Health Check Agent',      category: 'PCT Automation',           problem: 'Post-change testing requires 4-hr manual health check window',               beforeHrs: 240,  afterHrs: 36,  tools: ['Dynatrace','ServiceNow','Groq AI'],                           live: false, subcategories: ['incident-response','dynatrace'] },
-  { id: 45, domain: 'Infra Ops / ESC',        title: 'PCT Automation — Root Cause Analysis Agent',           category: 'PCT Automation',           problem: 'PCT RCA takes 6+ hrs without AI-assisted correlation of signals',            beforeHrs: 360,  afterHrs: 54,  tools: ['Splunk','Dynatrace','ServiceNow','Groq AI'],                  live: false, subcategories: ['incident-response','splunk','dynatrace'] },
+  { id: 44, domain: 'Infra Ops / ESC',        title: 'PCT Automation — RCA Agent & Health Check Agent',      category: 'PCT Automation',           problem: 'Post-change testing requires 4-hr manual health check window',               beforeHrs: 240,  afterHrs: 36,  tools: ['Dynatrace','ServiceNow','Claude Opus 4'],                           live: false, subcategories: ['incident-response','dynatrace'] },
+  { id: 45, domain: 'Infra Ops / ESC',        title: 'PCT Automation — Root Cause Analysis Agent',           category: 'PCT Automation',           problem: 'PCT RCA takes 6+ hrs without AI-assisted correlation of signals',            beforeHrs: 360,  afterHrs: 54,  tools: ['Splunk','Dynatrace','ServiceNow','Claude Opus 4'],                  live: false, subcategories: ['incident-response','splunk','dynatrace'] },
+  { id: 47, domain: 'Cloud Engineering',      title: 'Multi-Cluster Update Agent',                           category: 'Multi-Cluster Automation', problem: 'Helm chart updates require manual edits across every AKS cluster repo — error-prone, hours of work per release', beforeHrs: 480, afterHrs: 30, tools: ['Azure AKS','GitHub','Helm','Claude Opus 4'], live: true, path: '/demo/aks-helm-propagation', subcategories: ['cloud-engineering','automation-engineering','cape'] },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -265,13 +268,14 @@ function PlatformTowerPanel({ tower, activeLeaf, onSelect }) {
 
 // ─── Use-case card ────────────────────────────────────────────────────────────
 
-function UseCaseCard({ uc, index }) {
+function UseCaseCard({ uc, index, onSelect }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.3 }}
-      className={`card-humana p-4 flex flex-col gap-2 hover:shadow-lg transition-shadow relative
+      onClick={() => onSelect(uc)}
+      className={`card-humana p-4 flex flex-col gap-2 hover:shadow-lg transition-shadow relative cursor-pointer
         ${uc.live ? 'border border-humana-green/40' : ''}`}
     >
       {uc.live && (
@@ -290,9 +294,16 @@ function UseCaseCard({ uc, index }) {
         ))}
       </div>
       <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{uc.problem}</p>
-      <div className="mt-auto pt-2 border-t border-gray-100 flex justify-end">
+      <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-between">
+        <span className="text-xs text-humana-teal font-medium flex items-center gap-1">
+          View details <ChevronRight size={10} />
+        </span>
         {uc.live && uc.path ? (
-          <Link to={uc.path} className="flex items-center gap-1 text-xs text-humana-green font-semibold hover:underline">
+          <Link
+            to={uc.path}
+            onClick={e => e.stopPropagation()}
+            className="flex items-center gap-1 text-xs text-humana-green font-semibold hover:underline"
+          >
             Open Demo <ExternalLink size={10} />
           </Link>
         ) : (
@@ -307,6 +318,8 @@ function UseCaseCard({ uc, index }) {
 
 export default function Home() {
   const [activeLeaf, setActiveLeaf] = useState(null)
+  const [selectedUC, setSelectedUC] = useState(null)
+  const towersRef  = useRef(null)
   const catalogRef = useRef(null)
 
   const activeLabel = activeLeaf
@@ -319,7 +332,15 @@ export default function Home() {
 
   const handleSelect = (id) => {
     setActiveLeaf(id)
-    if (id) setTimeout(() => catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+    if (id) {
+      setTimeout(() => {
+        const el = towersRef.current
+        if (el) {
+          const top = el.getBoundingClientRect().top + window.scrollY - 16
+          window.scrollTo({ top, behavior: 'smooth' })
+        }
+      }, 80)
+    }
   }
 
   const [itOpsTower, platformTower] = TOWERS
@@ -344,8 +365,11 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ── IT Ops Command Center ── */}
+      <ITOpsCommandCenter towersRef={towersRef} />
+
       {/* ── Towers in Scope ── */}
-      <section className="px-6 pt-6 pb-2 max-w-6xl mx-auto">
+      <section ref={towersRef} className="px-6 pt-6 pb-2 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-humana-navy flex items-center gap-2">
             <Building2 size={16} className="text-humana-teal" />
@@ -392,11 +416,14 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           >
             {filtered.map((uc, i) => (
-              <UseCaseCard key={uc.id} uc={uc} index={i} />
+              <UseCaseCard key={uc.id} uc={uc} index={i} onSelect={setSelectedUC} />
             ))}
           </motion.div>
         </AnimatePresence>
       </section>
+
+      {/* ── Use Case Detail Drawer ── */}
+      <UseCaseDrawer uc={selectedUC} onClose={() => setSelectedUC(null)} />
 
       {/* ── Live Interactive Demos ── */}
       <section className="bg-humana-navy mt-6 px-6 py-8">
@@ -448,10 +475,11 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { path: '/demo/cvit-workflow',             title: 'CVIT Multi-Agent Orchestrator',  desc: '10-step agentic workflow: LangGraph + Groq tool calling + real Azure/ServiceNow/GitHub', color: 'from-red-700 to-red-900', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
-                { path: '/demo/cloud-onboarding-agent',   title: 'Cloud Onboarding Validation',    desc: 'Reads real Terraform from GitHub, runs 12 IDA checks, AI remediates failures',    color: 'from-humana-teal to-[#006677]',   badge: 'UC #6',  domain: 'Cloud Eng',        icon: Activity  },
-                { path: '/demo/ida-workflow-agent',       title: 'IDA Workflow Assist Agent',      desc: 'Real-time Terraform failure RCA with 5-Why analysis and GitHub workflow',         color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
+                { path: '/demo/cvit-workflow',             title: 'CVIT Multi-Agent Orchestrator',  desc: '10-step agentic workflow: LangGraph + Claude Opus 4 tool calling + real Azure/ServiceNow/GitHub', color: 'from-red-700 to-red-900', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
+                { path: '/demo/cloud-onboarding-agent',   title: 'Cloud Onboarding Validation',    desc: 'Reads real Terraform from GitHub, runs 12 compliance checks, AI remediates failures', color: 'from-humana-teal to-[#006677]', badge: 'UC #6',  domain: 'Cloud Eng',        icon: Activity  },
+                { path: '/demo/apg-agent',                title: 'APG Workflow Assist Agent',      desc: 'Terraform pipeline governance — A–E grade scoring, RCA, error classification',    color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
                 { path: '/demo/dependency-risk-agent',    title: 'Dependency Risk Management',     desc: 'Scans real GitHub repos for CVEs, AI risk analysis, creates fix PR automatically', color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', domain: 'Automation Eng',   icon: Shield    },
+                { path: '/demo/aks-helm-propagation',     title: 'Multi-Cluster Update Agent',     desc: 'AI-driven component updates (nginx, cert-manager, Prometheus) across all AKS clusters', color: 'from-[#0a5c44] to-[#063d2e]', badge: 'UC #47', domain: 'Cloud Eng',        icon: GitBranch },
               ].map(demo => (
                 <Link key={demo.path} to={demo.path} className="group">
                   <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>

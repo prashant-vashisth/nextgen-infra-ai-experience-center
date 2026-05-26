@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import HumanaHeader from './components/HumanaHeader'
-import DemoAgenda from './components/DemoAgenda'
 import Home from './pages/Home'
 import Catalog from './pages/Catalog'
-import IDAWorkflowAgent from './pages/IDAWorkflowAgent'
+import APGAgent from './pages/APGAgent'
 import BatchHealthAnalyzer from './pages/BatchHealthAnalyzer'
 import RCAandCMDB from './pages/RCAandCMDB'
 import AKSVulnerability from './pages/AKSVulnerability'
@@ -12,23 +11,21 @@ import FinOpsCostAgent from './pages/FinOpsCostAgent'
 import CloudOnboardingAgent from './pages/CloudOnboardingAgent'
 import DependencyRiskAgent from './pages/DependencyRiskAgent'
 import CVITWorkflowAgent from './pages/CVITWorkflowAgent'
+import AKSHelmPropagationAgent from './pages/AKSHelmPropagationAgent'
+import CAPERightsizingAgent from './pages/CAPERightsizingAgent'
+import Dashboard2 from './pages/Dashboard2'
 
 function AppContent() {
-  const location = useLocation()
-  const isDemo = location.pathname.startsWith('/demo')
-
   return (
     <div className="min-h-screen bg-humana-light font-sans">
       <HumanaHeader />
 
-      {isDemo && <DemoAgenda />}
-
-      <main className={`pt-14 transition-all duration-300 ${isDemo ? 'pl-52' : ''}`}>
+      <main className="pt-14">
         <Routes>
           <Route path="/"                                element={<Home />} />
           <Route path="/catalog"                         element={<Catalog />} />
           <Route path="/demo/aks-vulnerability-agent"    element={<AKSVulnerability />} />
-          <Route path="/demo/ida-workflow-agent"         element={<IDAWorkflowAgent />} />
+          <Route path="/demo/apg-agent"                   element={<APGAgent />} />
           <Route path="/demo/batch-health-analyzer"      element={<BatchHealthAnalyzer />} />
           <Route path="/demo/rca-cmdb-agent"             element={<RCAandCMDB />} />
           <Route path="/demo/event-management-agent"     element={<EventManagementAgent />} />
@@ -36,6 +33,9 @@ function AppContent() {
           <Route path="/demo/cloud-onboarding-agent"     element={<CloudOnboardingAgent />} />
           <Route path="/demo/dependency-risk-agent"      element={<DependencyRiskAgent />} />
           <Route path="/demo/cvit-workflow"              element={<CVITWorkflowAgent />} />
+          <Route path="/demo/aks-helm-propagation"       element={<AKSHelmPropagationAgent />} />
+          <Route path="/demo/cape-rightsizing-agent"     element={<CAPERightsizingAgent />} />
+          <Route path="/dashboard2"                      element={<Dashboard2 />} />
         </Routes>
       </main>
     </div>

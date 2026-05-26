@@ -1,34 +1,46 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, ChevronRight } from 'lucide-react'
+import { Home } from 'lucide-react'
+
+function ClaudeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {[0, 60, 120, 180, 240, 300].map((angle, i) => (
+        <ellipse
+          key={i}
+          cx="32" cy="32" rx="5" ry="14"
+          fill="#D97757"
+          opacity={i % 2 === 0 ? '1' : '0.65'}
+          transform={`rotate(${angle} 32 32)`}
+        />
+      ))}
+    </svg>
+  )
+}
 
 const NAV_LINKS = [
   { path: '/', label: 'Dashboard', icon: Home },
-  { path: '/demo/event-management-agent',  label: 'Event Management'  },
-  { path: '/demo/batch-health-analyzer',   label: 'Batch Analyzer'    },
-  { path: '/demo/rca-cmdb-agent',          label: 'RCA + CMDB'        },
-  { path: '/demo/finops-cost-agent',       label: 'FinOps'            },
-  { path: '/demo/cvit-workflow',           label: 'CVIT Agent'        },
-  { path: '/demo/cloud-onboarding-agent',  label: 'Cloud Onboarding'  },
-  { path: '/demo/ida-workflow-agent',      label: 'IDA Agent'         },
-  { path: '/demo/dependency-risk-agent',   label: 'Dependency Risk'   },
+  { path: '/demo/batch-health-analyzer',   label: 'Batch Analyzer'       },
+  { path: '/demo/cvit-workflow',           label: 'CVIT Agent'           },
+  { path: '/demo/apg-agent',               label: 'APG Agent'            },
+  { path: '/demo/aks-helm-propagation',    label: 'Cluster Updates'      },
+  { path: '/demo/cape-rightsizing-agent',  label: 'CAPE Rightsizing'     },
+  { path: '/dashboard2',                   label: 'AI Value Realization' },
 ]
 
 const PAGE_LABELS = {
   '/': 'Dashboard',
-  '/demo/event-management-agent':  'Event Management & Self-Heal',
   '/demo/batch-health-analyzer':   'Batch Health Analyzer',
-  '/demo/rca-cmdb-agent':          'RCA + CMDB',
-  '/demo/finops-cost-agent':       'FinOps Cost Agent',
   '/demo/cvit-workflow':           'CVIT Orchestrator',
   '/demo/cloud-onboarding-agent':  'Cloud Onboarding Validation',
-  '/demo/ida-workflow-agent':      'IDA Workflow Agent',
+  '/demo/apg-agent':               'Agentic Pipeline Governor',
   '/demo/dependency-risk-agent':   'Dependency Risk Management',
   '/demo/aks-vulnerability-agent': 'AKS Vulnerability Agent',
+  '/demo/aks-helm-propagation':    'Multi-Cluster Update Agent',
+  '/demo/cape-rightsizing-agent':  'CAPE Rightsizing Agent',
 }
 
 export default function HumanaHeader() {
   const location = useLocation()
-  const pathLabel = PAGE_LABELS[location.pathname]
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-humana-navy shadow-lg">
@@ -45,8 +57,8 @@ export default function HumanaHeader() {
             <span className="text-white/80 text-sm font-medium">AI Operations Hub</span>
           </Link>
           <span className="hidden lg:inline-flex items-center gap-1.5 bg-white/10 text-white/70 text-xs px-2 py-0.5 rounded border border-white/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-humana-teal animate-pulse" />
-            AI-Powered Operations
+            <ClaudeIcon />
+            Powered by Claude Opus 4
           </span>
         </div>
 
@@ -71,14 +83,6 @@ export default function HumanaHeader() {
         <div />
       </div>
 
-      {/* Breadcrumb */}
-      {location.pathname !== '/' && pathLabel && (
-        <div className="bg-humana-navy/80 border-t border-white/10 px-4 py-1 flex items-center gap-1 text-xs text-white/50">
-          <Link to="/" className="hover:text-white/80">Dashboard</Link>
-          <ChevronRight size={10} />
-          <span className="text-white/70">{pathLabel}</span>
-        </div>
-      )}
     </header>
   )
 }

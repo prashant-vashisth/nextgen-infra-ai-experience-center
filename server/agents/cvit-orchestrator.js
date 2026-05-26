@@ -6,32 +6,39 @@
  *   handover → work_package → [HUMAN: execute] →
  *   monitor → close → kb_update → done
  */
+const axios = require('axios');
 const { ChatGroq } = require('@langchain/groq');
 const { StateGraph, END, START, Annotation } = require('@langchain/langgraph');
 const { HumanMessage, AIMessage, SystemMessage, ToolMessage } = require('@langchain/core/messages');
 const { TOOL_SCHEMAS, executeTool } = require('./tools');
+const { VULN_SCENARIOS, getCurrentScenario, setCurrentScenario } = require('./cvit-state');
 
 // ── Workflow state definition (LangGraph Annotation) ──────────────────────────
 
 const WorkflowState = Annotation.Root({
-  workflowId:    Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  step:          Annotation({ reducer: (a, b) => b ?? a, default: () => 'idle' }),
-  stepIndex:     Annotation({ reducer: (a, b) => b ?? a, default: () => 0 }),
-  cveId:         Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  cluster:       Annotation({ reducer: (a, b) => b ?? a, default: () => 'humana-prod-aks-eastus' }),
-  findings:      Annotation({ reducer: (a, b) => b ?? a, default: () => [] }),
-  enrichedCVE:   Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  changeTicket:  Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  incidentTicket:Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  githubPR:      Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  kbArticle:     Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  validation:    Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  agentLogs:     Annotation({ reducer: (a, b) => [...(a || []), ...(b || [])], default: () => [] }),
-  humanApproval: Annotation({ reducer: (a, b) => b ?? a, default: () => null }),   // 'approved' | 'rejected'
-  humanExecute:  Annotation({ reducer: (a, b) => b ?? a, default: () => null }),   // 'confirmed' | 'cancelled'
-  startedAt:     Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  completedAt:   Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
-  error:         Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  workflowId:       Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  step:             Annotation({ reducer: (a, b) => b ?? a, default: () => 'idle' }),
+  stepIndex:        Annotation({ reducer: (a, b) => b ?? a, default: () => 0 }),
+  cveId:            Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  cluster:          Annotation({ reducer: (a, b) => b ?? a, default: () => 'humana-prod-aks-eastus' }),
+  findings:         Annotation({ reducer: (a, b) => b ?? a, default: () => [] }),
+  enrichedCVE:      Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  changeTicket:     Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  incidentTicket:   Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  githubPR:         Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  kbArticle:        Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  validation:       Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  agentLogs:        Annotation({ reducer: (a, b) => [...(a || []), ...(b || [])], default: () => [] }),
+  humanApproval:    Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  humanExecute:     Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  p1IncidentSysId:  Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  p1IncidentUrl:    Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  p1IncidentNumber: Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  cvitId:           Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  scenarioId:       Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  startedAt:        Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  completedAt:      Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
+  error:            Annotation({ reducer: (a, b) => b ?? a, default: () => null }),
 });
 
 // ── In-memory workflow store (keyed by workflowId) ────────────────────────────
@@ -46,6 +53,27 @@ function makeLLM(temperature = 0.1) {
     temperature,
     maxTokens: 1024,
   }).bindTools(TOOL_SCHEMAS);
+}
+
+// ── GitHub PR creation with retry (up to MAX_PR_RETRIES extra attempts) ───────
+const MAX_PR_RETRIES = 5;
+async function createGithubPRWithRetry(args, workflowId) {
+  for (let attempt = 0; attempt <= MAX_PR_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(2000 * attempt, 10000); // 2 s, 4 s, 6 s … capped at 10 s
+      log(workflowId, 'WorkPackageAgent', 'retry',
+        `PR creation attempt ${attempt + 1}/${MAX_PR_RETRIES + 1} — retrying in ${delay / 1000}s`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+    const result = await executeTool('create_github_pr', { ...args, _retryAttempt: attempt || undefined });
+    if (result.source !== 'fallback' && result.url !== '#') return result;
+    if (attempt < MAX_PR_RETRIES) {
+      log(workflowId, 'WorkPackageAgent', 'warn',
+        `PR creation attempt ${attempt + 1} returned fallback (${result.error || 'unknown error'}) — will retry`);
+    }
+  }
+  // All attempts exhausted — return whatever the last call produced
+  return await executeTool('create_github_pr', { ...args, _retryAttempt: MAX_PR_RETRIES });
 }
 
 // ── Logging helper ────────────────────────────────────────────────────────────
@@ -95,18 +123,19 @@ async function stepScan(state) {
   const wf = workflows.get(state.workflowId);
   wf.emit('step', { step: 'scan', index: 1, label: 'Detect & Classify CVITs' });
 
+  const scenario = VULN_SCENARIOS.find(s => s.id === state.scenarioId) || getCurrentScenario() || VULN_SCENARIOS[0];
+  const cvitTag  = state.cvitId ? `[${state.cvitId}] ` : '';
+
   const result = await runAgent(
     state.workflowId,
     'ScannerAgent',
-    `You are a container security scanning agent for Humana's AKS infrastructure.
-     Your job is to scan AKS clusters for vulnerable application dependencies and classify findings by severity and business impact.
-     Always scan the cluster and get real vulnerability data. Explain findings in plain language that infrastructure leaders can understand — avoid jargon.`,
-    `Scan the AKS cluster "${state.cluster}" for vulnerable dependencies in the member portal application.
-     Three critical vulnerabilities were introduced via a recent deployment to the claims-processing namespace:
-     - CVE-2022-23529 (jsonwebtoken@8.5.1): Authentication bypass — login tokens can be forged, giving attackers admin access without a password. CVSS 9.8 CRITICAL.
-     - CVE-2022-0235 (node-fetch@2.6.1): Internal network exposure — the app can be tricked into accessing internal Humana systems on behalf of an attacker. CVSS 8.8 HIGH.
-     - CVE-2024-47764 (cookie@0.5.0): Session hijacking — active member login sessions can be stolen and taken over. CVSS 9.1 CRITICAL.
-     List findings by severity, explain the real-world risk to 8.2M member records, and identify HIPAA compliance impact.`,
+    `You are a container security scanning agent for an AKS cluster.
+     Your job is to scan clusters for vulnerable container runtimes and images, classify findings by severity, and describe the technical impact.
+     Always scan the cluster and return structured findings. Focus on technical details — CVE IDs, versions, patch status, and affected workloads.`,
+    `${cvitTag}Scan the AKS cluster "${state.cluster}" for security violations in the claims-processing namespace.
+     The following issues were detected in a recent deployment:
+     ${scenario.scanPromptExtra}
+     List findings by severity (CRITICAL → HIGH → MEDIUM). For each issue, state the CVE or violation ID, the vulnerable component version, whether a patch exists, and which pods are affected.`,
   );
 
   // Extract findings from tool calls
@@ -131,13 +160,13 @@ async function stepCollect(state) {
   await runAgent(
     state.workflowId,
     'RequirementAgent',
-    `You are an intelligent requirement collection agent for Humana CVIT remediation.
-     Your job is to gather all context needed for safe vulnerability remediation: cluster details, affected namespaces, application owners, and environment metadata.`,
-    `For CVE ${topCVE.id} affecting the member portal in namespace ${topCVE.namespace || 'claims-processing'} on cluster ${state.cluster}:
-     1. Get the cluster and namespace information to understand how many members and systems are at risk
-     2. Identify which workloads handle PHI (Protected Health Information) — these are HIPAA-critical
-     3. Determine the safe patching window and rollback plan
-     4. Summarize in plain terms: who is at risk, what data could be exposed, and what we need to fix it`,
+    `You are a requirement collection agent for CVIT remediation.
+     Your job is to gather technical context needed for safe remediation: cluster topology, affected namespaces, running workloads, and environment details.`,
+    `For the security violation ${topCVE.id} in namespace ${topCVE.namespace || 'claims-processing'} on cluster ${state.cluster}:
+     1. Get the cluster and namespace information — how many pods are running, which deployments are affected
+     2. Identify which namespaces are impacted and what their criticality tier is
+     3. Determine the safe maintenance window for a rolling update (zero-downtime required)
+     4. Summarize: what is the affected component, what is the blast radius, and what is the remediation path`,
   );
 
   return { step: 'collect', stepIndex: 2 };
@@ -152,15 +181,14 @@ async function stepEnrich(state) {
   const result = await runAgent(
     state.workflowId,
     'EnrichmentAgent',
-    `You are a CVE enrichment agent. You fetch official CVE data from NVD, assess exploitability,
-     identify known patches, and calculate business impact for Humana's healthcare infrastructure.
-     Always fetch real NVD data for the CVE. Be specific about HIPAA implications.`,
-    `Enrich CVE ${topCVE.id}:
-     1. Fetch official CVE details from NVD (CVSS score, description, how easy it is to exploit)
-     2. Explain the vulnerability in plain language — what can an attacker actually do?
-     3. Identify the patched version and how to upgrade
-     4. Assess HIPAA compliance impact: does this expose Protected Health Information (PHI) for Humana's 8.2M members?
-     5. Estimate business risk: potential fine exposure, breach notification requirements, downtime risk`,
+    `You are a CVE enrichment agent. You fetch official CVE data from NVD, assess exploitability, and identify the patched versions.
+     Always fetch real NVD data for the CVE. Focus on technical details — CVSS vector, attack surface, exploit complexity, and the concrete fix.`,
+    `Enrich ${topCVE.id}:
+     1. Fetch official CVE or violation details from NVD (CVSS score, attack vector, exploitability)
+     2. Explain the vulnerability technically — what does an attacker gain, what is the attack surface?
+     3. Identify the patched version or fixed base image and the upgrade path
+     4. Assess blast radius in the cluster: which pods and namespaces are exposed?
+     5. State the remediation priority based on CVSS score and exploitability score`,
   );
 
   // Get the NVD data for state
@@ -184,7 +212,7 @@ async function stepAwaitApproval(state) {
 \nCVSS Score: ${topCVE.cvss_score || topCVE.cvss || 'N/A'}
 Affected namespace: ${topCVE.namespace}
 Cluster: ${state.cluster}
-HIPAA impact: ${topCVE.hipaaImpact || 'HIGH — PHI workloads affected'}
+Criticality: ${topCVE.severity || 'HIGH'} — ${topCVE.namespace || 'claims-processing'} namespace affected
 \nRemediation: ${topCVE.agentSummary?.slice(0, 300) || 'Upgrade component to patched version'}`,
     risk: topCVE.cvss_score >= 8 || topCVE.cvss >= 8 ? 'high' : 'medium',
     assignment_group: 'Cloud Operations',
@@ -220,22 +248,177 @@ async function stepWorkPackage(state) {
   const wf = workflows.get(state.workflowId);
   wf.emit('step', { step: 'work_package', index: 6, label: 'Work Package Creation' });
 
-  const topCVE = state.enrichedCVE || state.findings[0] || {};
+  const topCVE   = state.enrichedCVE || state.findings[0] || {};
+  const scenario = VULN_SCENARIOS.find(s => s.id === state.scenarioId) || getCurrentScenario() || VULN_SCENARIOS[0];
+  const cvitId   = state.cvitId || 'CVIT-UNKNOWN';
+  const cvitTag  = `[${cvitId}]`;
 
-  // Create ServiceNow incident for tracking + GitHub PR simultaneously
+  // Build work package content — handles both EOL runtime and package CVE scenarios
+  const isEolScenario = !!scenario.vulnImage
+  const cveRows = scenario.cves.map(c => {
+    if (isEolScenario) {
+      const comp   = c.pkg.includes(':') ? c.pkg.split(':')[0] : c.pkg.split('@')[0]
+      const fixVer = comp === 'node' ? scenario.fixImage : `patched (via ${scenario.fixImage} base)`
+      return `| ${c.pkg} | EOL | ${fixVer} | ${c.cve} | ${c.desc} |`
+    }
+    const [pkg, ver] = c.pkg.split('@')
+    const fix = (scenario.fixDeps || {})[pkg] || 'latest'
+    return `| ${pkg} | ${ver} | ${fix} | ${c.cve} | ${c.desc} |`
+  }).join('\n')
+
+  const snowDescription = isEolScenario
+    ? [
+        `${cvitTag} Work package for EOL runtime remediation in aks-nodeapp.`,
+        '',
+        `EOL Runtime: ${scenario.vulnImage} → Fix: ${scenario.fixImage}`,
+        '',
+        'Compliance Violations:',
+        ...scenario.cves.map(c => `- ${c.pkg} (${c.cve}): ${c.desc} — CVSS ${c.cvss}`),
+        '',
+        'Tasks:',
+        `1. Update Dockerfile: FROM ${scenario.vulnImage} → FROM ${scenario.fixImage}`,
+        '2. Build new container image with LTS base',
+        '3. Push to Azure Container Registry',
+        '4. Rolling update deployment (zero downtime)',
+        '5. Validate all pods running LTS base image',
+        '6. Re-run container vulnerability scan',
+      ].join('\n')
+    : [
+        `${cvitTag} Work package for critical dependency remediation in aks-nodeapp.`,
+        '',
+        'Vulnerabilities:',
+        ...scenario.cves.map(c => `- ${c.pkg} (${c.cve}): ${c.desc} — CVSS ${c.cvss}`),
+        '',
+        'Tasks:',
+        '1. Update package.json to patched versions',
+        '2. Build new container image',
+        '3. Push to Azure Container Registry',
+        '4. Rolling update deployment (zero downtime)',
+        '5. Validate all pods running patched image',
+        '6. Re-run container vulnerability scan',
+      ].join('\n')
+
+  const remediationBlock = isEolScenario
+    ? `\`\`\`bash
+# Fix Dockerfile base image
+# FROM ${scenario.vulnImage}  →  FROM ${scenario.fixImage}
+
+# Rebuild and push container image
+docker build -t humanaaksacr.azurecr.io/aks-nodeapp:${cvitId.toLowerCase()} .
+docker push humanaaksacr.azurecr.io/aks-nodeapp:${cvitId.toLowerCase()}
+
+# Rolling update — zero downtime
+kubectl set image deployment/aks-nodeapp \\
+  portal=humanaaksacr.azurecr.io/aks-nodeapp:${cvitId.toLowerCase()} \\
+  -n claims-processing
+
+# Validate
+kubectl rollout status deployment/aks-nodeapp -n claims-processing
+\`\`\``
+    : `\`\`\`bash
+# Update dependencies
+npm install ${scenario.cves.map(c => { const [p] = c.pkg.split('@'); return `${p}@${(scenario.fixDeps || {})[p] || 'latest'}` }).join(' ')}
+
+# Rebuild and push container image
+docker build -t humanaaksacr.azurecr.io/aks-nodeapp:${cvitId.toLowerCase()} .
+docker push humanaaksacr.azurecr.io/aks-nodeapp:${cvitId.toLowerCase()}
+
+# Rolling update — zero downtime
+kubectl set image deployment/aks-nodeapp \\
+  portal=humanaaksacr.azurecr.io/aks-nodeapp:${cvitId.toLowerCase()} \\
+  -n claims-processing
+
+# Validate
+kubectl rollout status deployment/aks-nodeapp -n claims-processing
+\`\`\``
+
+  const prBody = isEolScenario ? `## ${cvitTag} Security Fix — EOL Container Runtime Upgrade
+
+### Problem
+The \`aks-nodeapp\` service deployed to AKS cluster \`${state.cluster}\` (namespace: \`claims-processing\`) was running on **${scenario.vulnImage}**, which reached **End-of-Life** and is no longer receiving security patches from the Node.js project.
+
+Running an EOL runtime means any new CVEs discovered in the runtime, OpenSSL, or the base OS layer will remain permanently unpatched. This PR remediated the following active security issues:
+
+| Component | Issue ID | CVSS | Severity | What it means |
+|-----------|----------|------|----------|----------------|
+${scenario.cves.map(c => `| \`${c.pkg}\` | ${c.cve} | ${c.cvss} | **${c.severity}** | ${c.desc} |`).join('\n')}
+
+### Fix Applied
+Changed the container base image in \`app/Dockerfile\`:
+
+\`\`\`diff
+- FROM ${scenario.vulnImage}   # End-of-Life — no longer patched
++ FROM ${scenario.fixImage}    # Active LTS — receives security updates
+\`\`\`
+
+This single change resolves all ${scenario.cves.length} issues above because:
+- The EOL OpenSSL bundled with ${scenario.vulnImage} is replaced with the patched version in ${scenario.fixImage}
+- The EOL Alpine base layer is replaced with a currently supported version
+- All future CVE patches from the Node.js project will be received automatically
+
+### Deployment
+${remediationBlock}
+
+### Verification Checklist
+- [ ] \`kubectl get pods -n claims-processing\` — all 3 pods Running, 0 restarts
+- [ ] \`kubectl describe pod <pod-name> -n claims-processing | grep Image\` — confirms \`${scenario.fixImage}\`
+- [ ] Container vulnerability scan returns clean result for claims-processing namespace
+- [ ] Application health check endpoint \`/health\` responds 200 OK on all pods
+- [ ] ServiceNow incident ${state.p1IncidentNumber || '(see CVIT tracker)'} marked Resolved
+
+---
+**Tracking ID:** ${cvitId} | **Cluster:** ${state.cluster} | **Auto-generated by CVIT Orchestrator — approved by Security Manager**`
+
+  : `## ${cvitTag} Security Fix — ${scenario.cves.length} Vulnerabilities Patched
+
+### Problem
+The \`aks-nodeapp\` service in AKS cluster \`${state.cluster}\` (namespace: \`claims-processing\`) contained **${scenario.cves.length} known security vulnerabilities** in its runtime dependencies. These were introduced via a recent deployment and detected by the CVIT scanner.
+
+| Package | Installed | CVE | CVSS | Severity | Attack Vector |
+|---------|-----------|-----|------|----------|----------------|
+${scenario.cves.map(c => { const [pkg, ver] = c.pkg.split('@'); const fix = (scenario.fixDeps || {})[pkg] || 'latest'; return `| \`${pkg}\` | \`${ver}\` → \`${fix}\` | ${c.cve} | ${c.cvss} | **${c.severity}** | ${c.desc} |`; }).join('\n')}
+
+Each of these packages has a known, published patch. This PR upgrades them to the patched versions.
+
+### Fix Applied
+${remediationBlock}
+
+### Verification Checklist
+- [ ] \`npm audit\` returns 0 critical, 0 high vulnerabilities
+- [ ] All ${scenario.cves.length} CVEs confirmed resolved (npm audit --json check)
+- [ ] \`kubectl get pods -n claims-processing\` — all 3 pods Running, 0 restarts
+- [ ] Container vulnerability scan returns clean result
+- [ ] Application health check endpoint \`/health\` responds 200 OK on all pods
+- [ ] ServiceNow incident ${state.p1IncidentNumber || '(see CVIT tracker)'} marked Resolved
+
+---
+**Tracking ID:** ${cvitId} | **Cluster:** ${state.cluster} | **Auto-generated by CVIT Orchestrator — approved by Security Manager**`
+
+  // Create ServiceNow incident for tracking + GitHub PR simultaneously.
+  // PR creation uses retry logic (up to MAX_PR_RETRIES extra attempts) to handle
+  // transient GitHub API failures without surfacing a placeholder '#' link.
   const [incidentResult, prResult] = await Promise.all([
     executeTool('create_servicenow_incident', {
-      short_description: `CVIT Work Package: Patch 3 critical CVEs in member portal — ${state.cluster}`,
-      description: `Work package for critical dependency remediation in humana-member-portal.\n\nVulnerabilities:\n- CVE-2022-23529 (jsonwebtoken): Authentication bypass — CVSS 9.8\n- CVE-2022-0235 (node-fetch): Internal network exposure — CVSS 8.8\n- CVE-2024-47764 (cookie): Session hijacking — CVSS 9.1\n\nTasks:\n1. Update package.json to patched versions\n2. Build new container image\n3. Push to Azure Container Registry\n4. Rolling update deployment (zero downtime)\n5. Validate all pods running patched image\n6. Re-run HIPAA compliance scan`,
+      short_description: isEolScenario
+        ? `${cvitTag} CVIT Work Package: Remediate EOL Runtime ${scenario.vulnImage} → ${scenario.fixImage} — ${state.cluster}`
+        : `${cvitTag} CVIT Work Package: Patch ${scenario.cves.length} critical CVEs in member portal — ${state.cluster}`,
+      description: snowDescription,
       urgency: '2',
       assignment_group: 'Platform Engineering',
     }),
-    executeTool('create_github_pr', {
-      cve_id: topCVE.id,
-      title: `fix(security): patch 3 critical CVEs — upgrade auth and session dependencies`,
-      body: `## CVIT Security Remediation\n\n**Triggered by:** ${topCVE.id || 'CVE-2022-23529'} (CVSS ${topCVE.cvss_score || topCVE.cvss || '9.8'} CRITICAL)\n**Affected Service:** \`humana-member-portal\` in \`claims-processing\` namespace\n**Member Impact:** 8.2M member records protected\n\n### Vulnerabilities Fixed\n| Package | From | To | CVE | Risk |\n|---------|------|----|-----|------|\n| jsonwebtoken | 8.5.1 | 9.0.2 | CVE-2022-23529 | Authentication bypass |\n| node-fetch | 2.6.1 | 3.3.2 | CVE-2022-0235 | Internal network exposure |\n| cookie | 0.5.0 | 0.7.2 | CVE-2024-47764 | Session hijacking |\n\n### What Was At Risk\n- **Authentication bypass:** Attackers could forge login tokens and access any member account without a password\n- **Internal network exposure:** App could be weaponized to probe internal Humana systems\n- **Session hijacking:** Active member sessions could be stolen mid-session\n\n### Remediation Steps\n\`\`\`bash\n# Update dependencies\nnpm install jsonwebtoken@9.0.2 node-fetch@3.3.2 cookie@0.7.2\n\n# Rebuild and push container image\ndocker build -t humanaaksacr.azurecr.io/humana-member-portal:patched .\ndocker push humanaaksacr.azurecr.io/humana-member-portal:patched\n\n# Rolling update — zero downtime\nkubectl set image deployment/humana-member-portal \\\n  portal=humanaaksacr.azurecr.io/humana-member-portal:patched \\\n  -n claims-processing\n\n# Validate\nkubectl rollout status deployment/humana-member-portal -n claims-processing\n\`\`\`\n\n### Testing Checklist\n- [ ] All 3 CVEs confirmed patched (npm audit clean)\n- [ ] Member login flow working (authentication not broken)\n- [ ] Zero pod disruptions during rolling update\n- [ ] HIPAA compliance scan re-run and passing\n- [ ] ServiceNow incident closed\n\n*AI-generated by Humana CVIT Orchestrator — reviewed and approved by Security Manager*`,
-      patch_content: `# CVIT Remediation Patch\nCVE-2022-23529: jsonwebtoken 8.5.1 → 9.0.2\nCVE-2022-0235: node-fetch 2.6.1 → 3.3.2\nCVE-2024-47764: cookie 0.5.0 → 0.7.2\nApplied: ${new Date().toISOString()}\nCluster: ${state.cluster}`,
-    }),
+    createGithubPRWithRetry({
+      cve_id: topCVE.id || scenario.cves[0].cve,
+      title:  isEolScenario
+        ? `${cvitTag} fix(security): upgrade EOL runtime ${scenario.vulnImage} → ${scenario.fixImage}`
+        : `${cvitTag} fix(security): patch ${scenario.cves.length} critical CVEs — ${scenario.label.toLowerCase()}`,
+      body:   prBody,
+      patch_content: isEolScenario
+        ? `Dockerfile: FROM ${scenario.vulnImage} → FROM ${scenario.fixImage}\n${scenario.cves.map(c => `${c.cve}: ${c.pkg} (EOL)`).join('\n')}`
+        : scenario.cves.map(c => {
+            const [pkg, ver] = c.pkg.split('@')
+            return `${c.cve}: ${pkg} ${ver} → ${(scenario.fixDeps || {})[pkg] || 'latest'}`
+          }).join('\n'),
+    }, state.workflowId),
   ]);
 
   log(state.workflowId, 'WorkPackageAgent', 'created', `ServiceNow ${incidentResult.number} + GitHub PR #${prResult.number} created`, { incident: incidentResult, pr: prResult });
@@ -249,16 +432,31 @@ async function stepMonitor(state) {
   const wf = workflows.get(state.workflowId);
   wf.emit('step', { step: 'monitor', index: 8, label: 'Agent Monitors Remediation Progress' });
 
-  const phases = [
-    { pct: 10, msg: 'Rolling deployment initiated — new image building with patched dependencies' },
-    { pct: 25, msg: 'Docker build complete — jsonwebtoken 8.5.1 → 9.0.2, node-fetch 2.6.1 → 3.3.2, cookie 0.5.0 → 0.7.2' },
-    { pct: 40, msg: 'Image pushed to ACR — rolling update started (3 pods in claims-processing namespace)' },
-    { pct: 55, msg: 'Pod 1/3 restarted with patched image — health checks passing' },
-    { pct: 70, msg: 'Pod 2/3 restarted — authentication bypass CVE-2022-23529 no longer present' },
-    { pct: 82, msg: 'Pod 3/3 restarted — all member portal instances now running patched versions' },
-    { pct: 92, msg: 'Running HIPAA compliance scan — verifying no PHI exposure vectors remain' },
-    { pct: 100, msg: 'All 3 CVEs patched — zero downtime, 8.2M member sessions unaffected, HIPAA compliant' },
-  ];
+  // Merge the fix PR into main — DevOps confirmed execution, deployment is starting
+  const prNumber = state.githubPR?.number;
+  const prUrl    = state.githubPR?.url;
+  if (prNumber && prUrl && prUrl !== '#') {
+    try {
+      const owner = process.env.GITHUB_REPO_OWNER;
+      const repo  = process.env.GITHUB_REPO_NAME || 'aks-nodeapp-demo';
+      await axios.put(
+        `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/merge`,
+        {
+          commit_title: `fix(security): merge CVIT remediation PR #${prNumber} [${state.cvitId || 'CVIT'}]`,
+          commit_message: `Automated merge by CVIT Orchestrator after DevOps approval.\nTracking ID: ${state.cvitId || 'N/A'} | P1 Incident: ${state.p1IncidentNumber || 'N/A'}`,
+          merge_method: 'squash',
+        },
+        { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'humana-cvit-agent' } }
+      );
+      log(state.workflowId, 'MonitorAgent', 'action', `Fix PR #${prNumber} merged into main — deployment rolling out`);
+    } catch (e) {
+      const msg = e.response?.data?.message || e.message;
+      log(state.workflowId, 'MonitorAgent', 'action', `PR #${prNumber} merge: ${msg}`);
+    }
+  }
+
+  const scenario = VULN_SCENARIOS.find(s => s.id === state.scenarioId) || getCurrentScenario() || VULN_SCENARIOS[0];
+  const phases   = scenario.monitorPhases;
 
   for (const phase of phases) {
     await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
@@ -270,7 +468,7 @@ async function stepMonitor(state) {
   if (state.incidentTicket?.sys_id) {
     await executeTool('update_servicenow_ticket', {
       sys_id: state.incidentTicket.sys_id,
-      work_notes: 'Remediation complete. All 3 CVEs patched via rolling deployment. Zero downtime. HIPAA compliance scan passed. 8.2M member records secured.',
+      work_notes: 'Remediation complete. All CVEs patched via rolling deployment. Zero-downtime rolling update applied. Container vulnerability scan clean. All pods on supported LTS image.',
     });
   }
 
@@ -289,49 +487,104 @@ async function stepClose(state) {
     expected_version: topCVE.patchVersion || '1.1.12',
   });
 
-  log(state.workflowId, 'ClosureAgent', 'validated', `Validation complete: ${validation.nodesPatched}/${validation.nodesChecked} nodes patched`, validation);
+  log(state.workflowId, 'ClosureAgent', 'validated', `Validation complete: ${validation.nodesPatched}/${validation.nodesChecked} pods patched`, validation);
 
-  // Close the incident
-  if (state.incidentTicket?.sys_id) {
+  const elapsed = state.startedAt
+    ? Math.round((Date.now() - new Date(state.startedAt).getTime()) / 1000)
+    : 0;
+
+  const scenario = VULN_SCENARIOS.find(s => s.id === state.scenarioId) || getCurrentScenario() || VULN_SCENARIOS[0];
+  const cvitId   = state.cvitId || 'CVIT-UNKNOWN';
+
+  // AI-generated closure notes
+  const closureResult = await runAgent(
+    state.workflowId,
+    'ClosureAgent',
+    `You are a ServiceNow closure agent. Write concise, technical closure notes (3-4 sentences) for a resolved P1 security incident. Focus on what was fixed, how it was fixed, and the validation result.`,
+    `Write closure notes for P1 security incident ${state.p1IncidentNumber || ''} (tracking ID: ${cvitId}).
+     Summary: ${scenario.closureSummary}
+     Affected service: aks-nodeapp in claims-processing namespace on ${state.cluster}.
+     Fix applied: Zero-downtime rolling deployment. All ${validation.nodesPatched}/${validation.nodesChecked} pods updated. Container vulnerability scan clean. Total resolution time: ${elapsed}s.
+     Write the closure notes only — no preamble, no introductory sentence.`,
+    false,
+  );
+  const closureNotes = closureResult.content;
+
+  // Close the work package incident
+  if (state.incidentTicket?.sys_id && !state.incidentTicket.sys_id.startsWith('sys-')) {
     await executeTool('update_servicenow_ticket', {
       sys_id: state.incidentTicket.sys_id,
-      state: '6', // Resolved
-      work_notes: `Auto-closed by CVIT Orchestrator. All ${validation.nodesPatched} nodes verified with ${topCVE.patchVersion}. No regressions.`,
+      state: '6',
+      work_notes: closureNotes,
     });
+  }
+
+  // Close the original P1 incident
+  if (state.p1IncidentSysId && !state.p1IncidentSysId.startsWith('fallback')) {
+    await executeTool('update_servicenow_ticket', {
+      sys_id: state.p1IncidentSysId,
+      state: '6',
+      work_notes: `RESOLVED by CVIT AI Orchestrator.\n\n${closureNotes}\n\nChange Request: ${state.changeTicket?.number || 'N/A'} | Fix PR: #${state.githubPR?.number || 'N/A'} | KB Article: see KB Update step`,
+    });
+    log(state.workflowId, 'ClosureAgent', 'action', `P1 incident ${state.p1IncidentNumber || state.p1IncidentSysId} closed in ServiceNow with AI-generated notes`);
+    wf.emit('p1_closed', { sys_id: state.p1IncidentSysId, url: state.p1IncidentUrl, number: state.p1IncidentNumber, notes: closureNotes });
   }
 
   return { step: 'close', stepIndex: 9, validation, completedAt: new Date().toISOString() };
 }
 
 async function stepKBUpdate(state) {
-  const wf = workflows.get(state.workflowId);
+  const wf       = workflows.get(state.workflowId);
+  const scenario = VULN_SCENARIOS.find(s => s.id === state.scenarioId) || getCurrentScenario() || VULN_SCENARIOS[0];
+  const cvitId   = state.cvitId || 'CVIT-UNKNOWN';
+  const topCVE   = state.enrichedCVE || state.findings[0] || {};
+  const elapsed  = state.startedAt
+    ? Math.round((Date.now() - new Date(state.startedAt).getTime()) / 1000) : 0;
+
   wf.emit('step', { step: 'kb_update', index: 10, label: 'Knowledge Base Update' });
 
-  const topCVE = state.enrichedCVE || state.findings[0] || {};
-
-  const result = await runAgent(
+  // Phase 1: LLM writes the article text only — no tool call (avoids tool_use_failed on long content)
+  const writeResult = await runAgent(
     state.workflowId,
     'KBAgent',
-    `You are a knowledge management agent for Humana. You write clear, reusable KB articles about resolved security incidents so future engineers can remediate faster.`,
-    `Write a ServiceNow KB article for the resolved CVE ${topCVE.id || state.cveId} remediation.
-     Include: description, root cause, exact remediation steps (kubectl commands), validation procedure, time taken, lessons learned.
-     Then create the KB article using the create_kb_article tool.`,
+    `You are a knowledge management agent. Write concise, technical KB articles about resolved security incidents so future platform engineers can remediate faster. Plain text only — no tool calls.`,
+    `Write a KB article (max 400 words) for tracking ID ${cvitId}.
+Violation: ${topCVE.id || state.cveId}
+Scenario: ${scenario.label}
+Resolution: ${scenario.closureSummary}
+Cluster: ${state.cluster} | Namespace: claims-processing | Time to resolve: ${elapsed}s
+
+Sections to include:
+1. Summary (2 sentences — what was detected and how it was fixed)
+2. Root Cause (technical detail — which EOL component, what CVE, why it went undetected)
+3. Remediation Steps (exact commands: Dockerfile change, docker build, kubectl rollout)
+4. Validation Steps (how to verify the fix — kubectl describe, image tag check, vulnerability scan)
+5. Prevention (1-2 bullets — how to catch this earlier in the pipeline)
+
+Write the article text now. Do not call any tools.`,
+    false, // no tools — pure text generation
   );
 
-  // Get KB number from tool call results in logs
-  const kbLog = (wf.state.agentLogs || []).reverse().find(l => l.type === 'tool_result' && l.agent === 'KBAgent');
-  const kbArticle = kbLog?.data || { number: `KB${Math.floor(Math.random() * 9000000) + 1000000}`, source: 'kb_agent' };
+  // Phase 2: directly call the tool with the generated content (no LLM involvement)
+  const kbTitle = `[${cvitId}] CVE Remediation — ${topCVE.id || state.cveId} (${scenario.label})`;
+  log(state.workflowId, 'KBAgent', 'tool_call', `Creating KB article in ServiceNow: "${kbTitle}"`);
+  const kbArticle = await executeTool('create_kb_article', {
+    title:   kbTitle,
+    content: writeResult.content,
+  });
+  log(state.workflowId, 'KBAgent', 'tool_result', `KB article ${kbArticle.number} created in ServiceNow`, kbArticle);
 
-  const elapsed = state.startedAt
-    ? Math.round((Date.now() - new Date(state.startedAt).getTime()) / 1000)
-    : 0;
+  const doneLog = log(state.workflowId, 'KBAgent', 'complete', `KB article ${kbArticle.number} published. Total workflow time: ${elapsed}s`);
+
+  // Emit kb_ready so the client can show the link immediately (no reconnect needed)
+  wf.emit('kb_ready', { kbArticle, cvitId, elapsed });
 
   return {
     step: 'completed',
     stepIndex: 10,
     kbArticle,
     completedAt: new Date().toISOString(),
-    agentLogs: [log(state.workflowId, 'KBAgent', 'complete', `KB article ${kbArticle.number} published. Total workflow time: ${elapsed}s`)],
+    agentLogs: [doneLog],
   };
 }
 
@@ -339,23 +592,16 @@ async function stepKBUpdate(state) {
 function buildGraph() {
   const graph = new StateGraph(WorkflowState);
 
-  graph.addNode('scan',            stepScan);
-  graph.addNode('collect',         stepCollect);
-  graph.addNode('enrich',          stepEnrich);
-  graph.addNode('await_approval',  stepAwaitApproval);
-  graph.addNode('handover',        stepHandover);
-  graph.addNode('work_package',    stepWorkPackage);
-  graph.addNode('monitor',         stepMonitor);
-  graph.addNode('close',           stepClose);
-  graph.addNode('kb_update',       stepKBUpdate);
+  graph.addNode('scan',           stepScan);
+  graph.addNode('collect',        stepCollect);
+  graph.addNode('enrich',         stepEnrich);
+  graph.addNode('await_approval', stepAwaitApproval);
 
   graph.addEdge(START, 'scan');
   graph.addEdge('scan', 'collect');
   graph.addEdge('collect', 'enrich');
   graph.addEdge('enrich', 'await_approval');
-
-  // After await_approval the graph pauses — resumed by human approve API
-  graph.addEdge('await_approval', END);  // Graph suspends here
+  graph.addEdge('await_approval', END);
 
   return graph.compile();
 }
@@ -386,14 +632,25 @@ function buildPostExecutionGraph() {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-async function startWorkflow(workflowId, cluster, cveId, emitFn) {
+async function startWorkflow(workflowId, cluster, cveId, emitFn, p1Info = {}, cvitId = null, scenarioId = null) {
+  // Ensure shared scenario state is in sync (in case tools.js reads it)
+  if (scenarioId) {
+    const scenario = VULN_SCENARIOS.find(s => s.id === scenarioId)
+    if (scenario) setCurrentScenario(scenario)
+  }
+
   const state = {
-    workflowId, cluster: cluster || 'humana-prod-aks-eastus', cveId: cveId || 'CVE-2024-21626',
+    workflowId, cluster: cluster || 'humana-prod-aks-eastus', cveId: cveId || 'CVE-2022-23529',
     step: 'starting', stepIndex: 0, findings: [], agentLogs: [],
     startedAt: new Date().toISOString(),
     humanApproval: null, humanExecute: null,
     enrichedCVE: null, changeTicket: null, incidentTicket: null,
     githubPR: null, kbArticle: null, validation: null,
+    p1IncidentSysId: p1Info.sys_id || null,
+    p1IncidentUrl: p1Info.url || null,
+    p1IncidentNumber: p1Info.number || null,
+    cvitId: cvitId || null,
+    scenarioId: scenarioId || null,
   };
 
   workflows.set(workflowId, { state, emit: emitFn });
@@ -437,6 +694,9 @@ async function confirmExecution(workflowId, confirmedBy) {
   const graph = buildPostExecutionGraph();
   const result = await graph.invoke({ ...wf.state });
   Object.assign(wf.state, result);
+
+  // Broadcast the completed state so the frontend stops the spinner
+  wf.emit('state', { ...result, step: 'completed' });
   return result;
 }
 

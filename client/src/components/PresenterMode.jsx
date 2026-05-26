@@ -4,7 +4,7 @@ import { Play, AlertTriangle, RefreshCw, Bug, Server, Zap } from 'lucide-react'
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 const SCENARIOS = [
-  { id: 'trigger-ida-failure', label: 'Trigger IDA Failure', icon: AlertTriangle, color: 'bg-red-500', endpoint: '/api/ida/trigger-failure' },
+  { id: 'trigger-apg-failure', label: 'Trigger APG Failure', icon: AlertTriangle, color: 'bg-red-500', endpoint: '/api/apg/trigger-failure' },
   { id: 'trigger-batch-failure', label: 'Batch Job Failure', icon: Server, color: 'bg-orange-500', endpoint: '/api/batch/fail-job' },
   { id: 'inject-cve', label: 'Inject Critical CVE', icon: Bug, color: 'bg-red-600', endpoint: '/api/aks/inject-cve' },
   { id: 'create-problem', label: 'Create Problem Ticket', icon: Zap, color: 'bg-purple-600', endpoint: '/api/snow/problem' },

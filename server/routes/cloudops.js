@@ -52,7 +52,7 @@ router.get('/repos', async (req, res) => {
 
 // POST /api/cloudops/validate — fetch terraform from repo and validate it
 router.post('/validate', async (req, res) => {
-  const { repo = 'humana-aks-demo', owner } = req.body;
+  const { repo = 'aks-nodeapp-demo', owner } = req.body;
   const { GITHUB_TOKEN, GITHUB_REPO_OWNER } = process.env;
   const repoOwner = owner || GITHUB_REPO_OWNER;
 
@@ -152,7 +152,7 @@ function getFallbackRemediation(results) {
 
 function getMockRepos() {
   return [
-    { name: 'humana-aks-demo',          fullName: 'prashant-vashisth/humana-aks-demo',          defaultBranch: 'main', language: 'HCL',        updatedAt: new Date().toISOString() },
+    { name: 'aks-nodeapp-demo',          fullName: 'prashant-vashisth/aks-nodeapp-demo',          defaultBranch: 'main', language: 'HCL',        updatedAt: new Date().toISOString() },
     { name: 'humana-iac-modules',        fullName: 'prashant-vashisth/humana-iac-modules',        defaultBranch: 'main', language: 'HCL',        updatedAt: new Date(Date.now() - 86400000).toISOString() },
     { name: 'humana-platform-configs',   fullName: 'prashant-vashisth/humana-platform-configs',   defaultBranch: 'main', language: 'YAML',       updatedAt: new Date(Date.now() - 172800000).toISOString() },
   ];

@@ -331,7 +331,7 @@ Return JSON: {"owner": "team name", "environment": "env name", "classification":
                     )}
                   </div>
                   <p className="text-sm font-semibold text-humana-navy">{rcaContent.rootCause}</p>
-                  {rcaDuration && <p className="text-xs text-gray-400 mt-1">Groq analyzed in {(rcaDuration / 1000).toFixed(2)}s</p>}
+                  {rcaDuration && <p className="text-xs text-gray-400 mt-1">Claude Opus 4 analyzed in {(rcaDuration / 1000).toFixed(2)}s</p>}
                 </div>
 
                 {/* 5-Why */}

@@ -67,7 +67,7 @@ router.get('/repos', async (req, res) => {
 
 // POST /api/deps/scan — SSE: fetch package files from repo and scan them
 router.post('/scan', async (req, res) => {
-  const { repo = 'humana-aks-demo', owner } = req.body;
+  const { repo = 'aks-nodeapp-demo', owner } = req.body;
   const repoOwner = owner || process.env.GITHUB_REPO_OWNER;
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -162,7 +162,7 @@ router.post('/analyze', async (req, res) => {
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [{
         role: 'user',
-        content: `You are a security engineer at Humana reviewing dependency vulnerabilities in repo: ${repo || 'humana-aks-demo'}.
+        content: `You are a security engineer at Humana reviewing dependency vulnerabilities in repo: ${repo || 'aks-nodeapp-demo'}.
 
 Top vulnerabilities found:
 ${top.map(f => `- ${f.package}@${f.current} → ${f.cve} (CVSS ${f.cvss}, ${f.severity}): ${f.desc}. Safe version: ${f.safe}`).join('\n')}
@@ -263,7 +263,7 @@ All 7 findings can be resolved in one PR with zero breaking changes.`;
 
 function getMockRepos() {
   return [
-    { name: 'humana-aks-demo',        language: 'HCL',        updatedAt: new Date().toISOString() },
+    { name: 'aks-nodeapp-demo',        language: 'HCL',        updatedAt: new Date().toISOString() },
     { name: 'humana-iac-modules',      language: 'HCL',        updatedAt: new Date(Date.now() - 86400000).toISOString() },
     { name: 'nextgen-infra-ai-experience-center', language: 'JavaScript', updatedAt: new Date(Date.now() - 3600000).toISOString() },
   ];

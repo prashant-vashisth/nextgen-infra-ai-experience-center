@@ -303,7 +303,7 @@ Provide: 1) Root cause (2 sentences), 2) Immediate remediation steps (3-4 steps)
               </h3>
               {isAnalyzing && <LiveIndicator label="ANALYZING" color="teal" />}
               {analysisDuration && !isAnalyzing && (
-                <span className="text-xs text-gray-400">Groq: {(analysisDuration / 1000).toFixed(2)}s</span>
+                <span className="text-xs text-gray-400">Claude Opus 4: {(analysisDuration / 1000).toFixed(2)}s</span>
               )}
             </div>
 

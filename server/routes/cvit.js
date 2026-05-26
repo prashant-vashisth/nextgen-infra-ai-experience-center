@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { v4: uuidv4 } = require('crypto').randomUUID ? { v4: () => require('crypto').randomUUID() } : { v4: () => `wf-${Date.now()}-${Math.random().toString(36).slice(2)}` };
+const { VULN_SCENARIOS, nextSequence, makeCvitId, setCurrentScenario } = require('../agents/cvit-state');
 const { startWorkflow, approveWorkflow, rejectWorkflow, confirmExecution, getWorkflowState, listWorkflows, workflows } = require('../agents/cvit-orchestrator');
 
 // ── GitHub helpers ─────────────────────────────────────────────────────────────
 const GH_OWNER = process.env.GITHUB_REPO_OWNER || 'prashant-vashisth';
-const GH_REPO  = 'humana-aks-demo';
+const GH_REPO  = 'aks-nodeapp-demo';
 const ghHeaders = () => ({
   Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
   Accept: 'application/vnd.github+json',
@@ -85,61 +85,55 @@ router.get('/actions-status', async (req, res) => {
   }
 });
 
-// ── POST inject vulnerability → creates real GitHub PR ────────────────────────
+// ── POST inject vulnerability → creates real GitHub PR with EOL Dockerfile ────
 router.post('/inject-vulnerability', async (req, res) => {
   try {
     const base = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`;
 
-    // Get current package.json SHA
-    const fileRes = await axios.get(`${base}/contents/app/package.json`, { headers: ghHeaders() });
-    const currentSha = fileRes.data.sha;
+    // Pick next scenario in rotation and generate unique CVIT identifier
+    const seq      = nextSequence();
+    const cvitId   = makeCvitId(seq);
+    const scenario = VULN_SCENARIOS[(seq - 1) % VULN_SCENARIOS.length];
+    setCurrentScenario(scenario);
 
-    // Vulnerable package.json — introduces 3 real CVEs that infrastructure leaders understand
-    const vulnPkg = {
-      name: 'humana-member-portal',
-      version: '1.2.1',
-      description: 'Humana Member Portal — Claims Processing Microservice',
-      main: 'index.js',
-      scripts: { start: 'node index.js', test: 'echo ok' },
-      dependencies: {
-        express:       '4.18.2',
-        jsonwebtoken:  '8.5.1',   // CVE-2022-23529 — authentication bypass, CVSS 9.8
-        'node-fetch':  '2.6.1',   // CVE-2022-0235  — internal network exposure, CVSS 8.8
-        cookie:        '0.5.0',   // CVE-2024-47764 — session hijacking, CVSS 9.1
-        helmet:        '7.1.0',
-        cors:          '2.8.5',
-      },
-      engines: { node: '>=18.0.0' },
-    };
+    // Get current Dockerfile SHA and content
+    const fileRes      = await axios.get(`${base}/contents/app/Dockerfile`, { headers: ghHeaders() });
+    const currentSha   = fileRes.data.sha;
+    const currentContent = Buffer.from(fileRes.data.content, 'base64').toString();
 
-    // Create branch
+    // Replace the FROM line with the EOL base image — rest of Dockerfile unchanged
+    const vulnContent = currentContent.replace(/^FROM\s+\S+/m, `FROM ${scenario.vulnImage}`);
+
+    // Create branch with CVIT-ID embedded
     const mainRef = await axios.get(`${base}/git/ref/heads/main`, { headers: ghHeaders() });
-    const branch = `feat/member-portal-auth-session-upgrade-${Date.now()}`;
+    const branch = `${scenario.branchPrefix}-${cvitId.toLowerCase()}`;
     await axios.post(`${base}/git/refs`, { ref: `refs/heads/${branch}`, sha: mainRef.data.object.sha }, { headers: ghHeaders() });
 
-    // Commit vulnerable package.json to branch
-    await axios.put(`${base}/contents/app/package.json`, {
-      message: 'feat: upgrade auth library and improve session management for member portal',
-      content: Buffer.from(JSON.stringify(vulnPkg, null, 2)).toString('base64'),
+    // Commit modified Dockerfile — commit message looks like normal dev/ops work
+    await axios.put(`${base}/contents/app/Dockerfile`, {
+      message: `${scenario.commitMsg} [${cvitId}]`,
+      content: Buffer.from(vulnContent).toString('base64'),
       sha: currentSha,
       branch,
     }, { headers: ghHeaders() });
 
-    // Create PR — realistic title, no mention of vulnerability
+    // Create PR with CVIT-ID in title for tracking, realistic body with no mention of compliance
     const prRes = await axios.post(`${base}/pulls`, {
-      title: 'feat: upgrade authentication and session management libraries',
-      body: `## Summary\n- Upgrade \`jsonwebtoken\` for improved API token validation in member portal\n- Upgrade \`node-fetch\` for faster claims data retrieval from internal APIs\n- Add \`cookie\` library for enhanced session management\n\n## Business Impact\n- Faster login response for 8.2M members\n- Improved claims API throughput by ~18%\n- More reliable session handling\n\n## Test Plan\n- [ ] Unit tests passing\n- [ ] Integration tests green\n- [ ] Load test: 500 concurrent member sessions\n- [ ] HIPAA compliance scan scheduled`,
-      head: branch,
-      base: 'main',
+      title: `[${cvitId}] ${scenario.prTitle}`,
+      body:  scenario.prBodyTemplate(cvitId),
+      head:  branch,
+      base:  'main',
     }, { headers: ghHeaders() });
 
     res.json({
+      cvitId,
+      sequence: seq,
+      scenario: scenario.id,
+      scenarioLabel: scenario.label,
       pr: { number: prRes.data.number, url: prRes.data.html_url, branch, title: prRes.data.title },
-      cves: [
-        { pkg: 'jsonwebtoken@8.5.1', cve: 'CVE-2022-23529', severity: 'CRITICAL', cvss: 9.8, desc: 'Authentication bypass — login tokens can be forged, granting admin access without a password' },
-        { pkg: 'node-fetch@2.6.1',   cve: 'CVE-2022-0235',  severity: 'HIGH',     cvss: 8.8, desc: 'Internal network exposure — app can be tricked into accessing internal Humana systems on behalf of an attacker' },
-        { pkg: 'cookie@0.5.0',       cve: 'CVE-2024-47764', severity: 'CRITICAL', cvss: 9.1, desc: 'Session hijacking — active member login sessions can be stolen and taken over' },
-      ],
+      cves: scenario.cves,
+      vulnImage: scenario.vulnImage,
+      fixImage:  scenario.fixImage,
       source: 'github_live',
     });
   } catch (e) {
@@ -186,15 +180,48 @@ router.post('/deploy-vulnerable', async (req, res) => {
 
 // ── POST create ServiceNow P1 incident ────────────────────────────────────────
 router.post('/create-p1-incident', async (req, res) => {
-  const { cves = [], cluster = 'humana-prod-aks', prUrl = '' } = req.body;
+  const { cves = [], cluster = 'humana-prod-aks', prUrl = '', vulnImage, fixImage } = req.body;
   const snow = snowClient();
 
-  const cveList = cves.map(c => `• ${c.pkg} — ${c.cve} (CVSS ${c.cvss}, ${c.severity}): ${c.desc}`).join('\n');
-  const shortDesc = `[P1-SEC] Critical vulnerabilities detected in AKS cluster ${cluster}`;
-  const description = `AUTOMATED DETECTION — CVIT Scanner\n\nCluster: ${cluster}\nNamespace: claims-processing\nTimestamp: ${new Date().toISOString()}\n\n` +
-    `VULNERABLE DEPENDENCIES DETECTED:\n${cveList}\n\n` +
-    `GitHub PR that introduced vulnerabilities: ${prUrl || 'see CVIT workflow'}\n\n` +
-    `IMMEDIATE ACTION REQUIRED: Remediation agents have been notified and will begin orchestrated response.`;
+  const violationList = cves.map(c => `• ${c.pkg} — ${c.cve} (CVSS ${c.cvss}, ${c.severity}): ${c.desc}`).join('\n');
+  const shortDesc = vulnImage
+    ? `[P1-SEC] EOL container runtime detected on AKS cluster — ${cluster} / claims-processing`
+    : `[P1-SEC] Security violations detected in container workload — ${cluster}`;
+  const description = vulnImage
+    ? [
+        `AUTOMATED DETECTION — CVIT Scanner`,
+        ``,
+        `Cluster:    ${cluster}`,
+        `Namespace:  claims-processing`,
+        `Detected:   ${new Date().toISOString()}`,
+        ``,
+        `EOL RUNTIME DETECTED`,
+        `Base image ${vulnImage} is past End-of-Life and is no longer receiving security patches.`,
+        `The runtime must be upgraded to a supported version — active CVEs in the EOL image cannot be remediated without upgrading the base.`,
+        ``,
+        `SECURITY VIOLATIONS:`,
+        violationList,
+        ``,
+        `Source PR (introduced EOL runtime): ${prUrl || 'see CVIT workflow'}`,
+        ``,
+        `RECOMMENDED FIX: Update Dockerfile base image from ${vulnImage} to ${fixImage || 'node:20-alpine'} (current LTS).`,
+        ``,
+        `Remediation workflow has been triggered automatically. Agents are investigating impact and preparing a fix PR.`,
+      ].join('\n')
+    : [
+        `AUTOMATED DETECTION — CVIT Scanner`,
+        ``,
+        `Cluster:    ${cluster}`,
+        `Namespace:  claims-processing`,
+        `Detected:   ${new Date().toISOString()}`,
+        ``,
+        `SECURITY VIOLATIONS DETECTED:`,
+        violationList,
+        ``,
+        `Source PR: ${prUrl || 'see CVIT workflow'}`,
+        ``,
+        `Remediation workflow has been triggered automatically. Agents are investigating impact and preparing a fix PR.`,
+      ].join('\n');
 
   if (snow) {
     try {
@@ -239,7 +266,7 @@ router.post('/create-p1-incident', async (req, res) => {
 
 // ── POST start SNOW polling → auto-trigger CVIT when ticket confirmed ──────────
 router.post('/start-snow-polling', async (req, res) => {
-  const { incidentSysId, incidentNumber, cluster = 'humana-prod-aks', cves = [] } = req.body;
+  const { incidentSysId, incidentNumber, incidentUrl, cluster = 'humana-prod-aks', cves = [], cvitId, scenario } = req.body;
   if (!incidentSysId) return res.status(400).json({ error: 'incidentSysId required' });
 
   // Clear any existing poller for this incident
@@ -274,8 +301,8 @@ router.post('/start-snow-polling', async (req, res) => {
 
         setImmediate(async () => {
           try {
-            emitFn('started', { workflowId, cluster, triggeredBy: 'snow_polling', incidentNumber });
-            await startWorkflow(workflowId, cluster, cves[0]?.cve || 'CVE-2022-23529', emitFn);
+            emitFn('started', { workflowId, cluster, triggeredBy: 'snow_polling', incidentNumber, cvitId });
+            await startWorkflow(workflowId, cluster, cves[0]?.cve || 'CVE-2022-23529', emitFn, { sys_id: incidentSysId, url: incidentUrl, number: incidentNumber }, cvitId, scenario);
           } catch (err) {
             emitFn('error', { message: err.message });
           }

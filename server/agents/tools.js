@@ -3,6 +3,7 @@
  * All real API calls the agents can invoke via Groq tool calling.
  */
 const axios = require('axios');
+const { getCurrentScenario, VULN_SCENARIOS } = require('./cvit-state');
 
 // ── Azure helpers ──────────────────────────────────────────────────────────────
 let _azureToken = null, _azureExpiry = 0;
@@ -317,24 +318,69 @@ async function executeTool(name, args) {
 
     case 'create_github_pr': {
       const owner = process.env.GITHUB_REPO_OWNER;
-      const repo = process.env.GITHUB_REPO_NAME || 'humana-aks-demo';
+      const repo  = process.env.GITHUB_REPO_NAME || 'aks-nodeapp-demo';
       const token = process.env.GITHUB_TOKEN;
       if (!owner || !token) return { number: Math.floor(Math.random() * 900) + 100, url: '#', source: 'fallback' };
 
       try {
-        const base = `https://api.github.com/repos/${owner}/${repo}`;
-        const mainRef = await axios.get(`${base}/git/ref/heads/main`, { headers: gh().headers });
-        const sha = mainRef.data.object.sha;
-        const branch = `fix/${args.cve_id?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'cvit'}-${Date.now()}`;
+        const scenario = getCurrentScenario() || VULN_SCENARIOS[0];
+        const base     = `https://api.github.com/repos/${owner}/${repo}`;
+        const mainRef  = await axios.get(`${base}/git/ref/heads/main`, { headers: gh().headers });
+        const sha      = mainRef.data.object.sha;
+
+        // Branch name encodes the CVIT-ID from the PR title if present
+        // On retries (_retryAttempt > 0) append a suffix so we don't collide with a
+        // partially-created branch from the previous attempt.
+        const cvitMatch   = (args.title || '').match(/\[CVIT-\d+-\d+\]/);
+        const cvitSlug    = cvitMatch ? cvitMatch[0].replace(/[\[\]]/g, '').toLowerCase() : `cvit-${Date.now()}`;
+        const retrySuffix = args._retryAttempt ? `-r${args._retryAttempt}` : '';
+        const branch      = `fix/${cvitSlug}-runtime-upgrade${retrySuffix}`;
 
         await axios.post(`${base}/git/refs`, { ref: `refs/heads/${branch}`, sha }, { headers: gh().headers });
 
-        const patchContent = args.patch_content || `# CVIT Remediation — ${args.cve_id}\n\n## Patch Applied\n${args.body}\n\n## Validation\n- [ ] Component upgraded to patched version\n- [ ] Cluster nodes recycled\n- [ ] No regressions detected\n`;
-        let existingSha;
-        try { const e = await axios.get(`${base}/contents/CVIT_PATCHES.md`, { headers: gh().headers }); existingSha = e.data.sha; } catch { /* new file */ }
-        const fb = { message: `fix: ${args.cve_id} remediation patch`, content: Buffer.from(patchContent).toString('base64'), branch };
-        if (existingSha) fb.sha = existingSha;
-        await axios.put(`${base}/contents/CVIT_PATCHES.md`, fb, { headers: gh().headers });
+        if (scenario.fixImage) {
+          // EOL runtime scenario — fix the Dockerfile by upgrading the base image
+          let dockerfileSha;
+          let fixedContent;
+          try {
+            const dfRes   = await axios.get(`${base}/contents/app/Dockerfile`, { headers: gh().headers });
+            dockerfileSha = dfRes.data.sha;
+            const current = Buffer.from(dfRes.data.content, 'base64').toString();
+            fixedContent  = current.replace(/^FROM\s+\S+/m, `FROM ${scenario.fixImage}`);
+          } catch {
+            fixedContent = `FROM ${scenario.fixImage}\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci --omit=dev\nCOPY . .\nEXPOSE 3000\nCMD ["node", "index.js"]\n`;
+          }
+
+          const commitPayload = {
+            message: `fix(security): upgrade EOL container runtime ${scenario.vulnImage} → ${scenario.fixImage} [${cvitSlug.toUpperCase()}]`,
+            content: Buffer.from(fixedContent).toString('base64'),
+            branch,
+          };
+          if (dockerfileSha) commitPayload.sha = dockerfileSha;
+          await axios.put(`${base}/contents/app/Dockerfile`, commitPayload, { headers: gh().headers });
+        } else {
+          // Package CVE scenario — fix package.json dependency versions
+          let pkgFileSha;
+          let fixedPkg;
+          try {
+            const pkgRes  = await axios.get(`${base}/contents/app/package.json`, { headers: gh().headers });
+            pkgFileSha    = pkgRes.data.sha;
+            const current = JSON.parse(Buffer.from(pkgRes.data.content, 'base64').toString());
+            const parts   = (current.version || '1.0.0').replace(/-.*$/, '').split('.');
+            parts[2]      = String(parseInt(parts[2] || '0') + 1);
+            fixedPkg      = { ...current, version: parts.join('.'), dependencies: { ...current.dependencies, ...scenario.fixDeps } };
+          } catch {
+            fixedPkg = { name: 'humana-member-portal', version: '1.0.1', dependencies: scenario.fixDeps };
+          }
+
+          const commitPayload = {
+            message: `fix(security): ${args.cve_id} — upgrade to patched dependency versions`,
+            content: Buffer.from(JSON.stringify(fixedPkg, null, 2)).toString('base64'),
+            branch,
+          };
+          if (pkgFileSha) commitPayload.sha = pkgFileSha;
+          await axios.put(`${base}/contents/app/package.json`, commitPayload, { headers: gh().headers });
+        }
 
         const pr = await axios.post(`${base}/pulls`, { title: args.title, body: args.body, head: branch, base: 'main' }, { headers: gh().headers });
         return { number: pr.data.number, url: pr.data.html_url, branch, source: 'github_live', state: 'open' };
@@ -345,10 +391,12 @@ async function executeTool(name, args) {
 
     case 'create_servicenow_incident': {
       const snow = snowClient();
+      const snowHost = process.env.SNOW_INSTANCE?.replace(/^https?:\/\//, '').replace(/\/$/, '');
       if (!snow) return { number: `INC${Math.floor(Math.random() * 9000000) + 1000000}`, sys_id: `sys-${Date.now()}`, source: 'fallback' };
       try {
         const r = await snow.post('/table/incident', { short_description: args.short_description, description: args.description, urgency: args.urgency || '2', assignment_group: args.assignment_group || 'Cloud Operations', category: 'Security', caller_id: 'admin' });
-        return { number: r.data.result.number, sys_id: r.data.result.sys_id, state: r.data.result.state, source: 'servicenow_live' };
+        const sys_id = r.data.result.sys_id;
+        return { number: r.data.result.number, sys_id, state: r.data.result.state, source: 'servicenow_live', url: `https://${snowHost}/nav_to.do?uri=incident.do?sys_id=${sys_id}` };
       } catch {
         return { number: `INC${Math.floor(Math.random() * 9000000) + 1000000}`, sys_id: `sys-${Date.now()}`, source: 'fallback' };
       }
@@ -372,14 +420,16 @@ async function executeTool(name, args) {
 
     case 'create_kb_article': {
       const snow = snowClient();
+      const snowHost = process.env.SNOW_INSTANCE?.replace(/^https?:\/\//, '').replace(/\/$/, '');
       if (!snow) return { number: `KB${Math.floor(Math.random() * 9000000) + 1000000}`, source: 'fallback' };
       try {
         const r = await snow.post('/table/kb_knowledge', { short_description: args.title, text: args.content, kb_category: 'Security', workflow_state: 'draft' });
-        return { number: r.data.result.number, sys_id: r.data.result.sys_id, source: 'servicenow_live' };
+        const sys_id = r.data.result.sys_id;
+        return { number: r.data.result.number, sys_id, source: 'servicenow_live', url: `https://${snowHost}/nav_to.do?uri=kb_knowledge.do?sys_id=${sys_id}` };
       } catch {
         try {
           const r2 = await snow.post('/table/incident', { short_description: `[KB] ${args.title}`, description: args.content, urgency: '3', category: 'Knowledge' });
-          return { number: r2.data.result.number, source: 'servicenow_live_incident' };
+          return { number: r2.data.result.number, sys_id: r2.data.result.sys_id, source: 'servicenow_live_incident', url: `https://${snowHost}/nav_to.do?uri=incident.do?sys_id=${r2.data.result.sys_id}` };
         } catch {
           return { number: `KB${Math.floor(Math.random() * 9000000) + 1000000}`, source: 'fallback' };
         }

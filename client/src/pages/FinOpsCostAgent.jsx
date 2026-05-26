@@ -206,7 +206,7 @@ export default function FinOpsCostAgent() {
           {(analysis || isAnalyzing) && (
             <div className="card-humana p-4 flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-semibold text-humana-navy">Groq AI Recommendations</span>
+                <span className="text-xs font-semibold text-humana-navy">Claude Opus 4 Recommendations</span>
                 {isAnalyzing && <LiveIndicator label="STREAMING" color="teal" />}
                 {analysisDone && <CheckCircle2 size={14} className="text-humana-green" />}
               </div>

@@ -18,7 +18,7 @@ const GRADE_STYLE = { A: 'text-humana-green bg-green-50 border-green-300', B: 't
 
 export default function CloudOnboardingAgent() {
   const [repos, setRepos] = useState([])
-  const [selectedRepo, setSelectedRepo] = useState('humana-aks-demo')
+  const [selectedRepo, setSelectedRepo] = useState('aks-nodeapp-demo')
   const [phase, setPhase] = useState('idle')   // idle | validating | done
   const [steps, setSteps] = useState([])
   const [results, setResults] = useState([])
@@ -86,7 +86,7 @@ export default function CloudOnboardingAgent() {
               UC #6 · Cloud Engineering
             </div>
             <h1 className="text-xl font-bold text-humana-navy">Cloud Onboarding AI Validation Agent</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Reads real Terraform from GitHub → runs 12 IDA compliance checks → AI remediates failures</p>
+            <p className="text-sm text-gray-500 mt-0.5">Reads real Terraform from GitHub → runs 12 governance compliance checks → AI remediates failures</p>
           </div>
           {phase === 'validating' && <LiveIndicator label="SCANNING" color="teal" />}
         </div>
@@ -109,15 +109,15 @@ export default function CloudOnboardingAgent() {
                   <div className="text-gray-400 mt-0.5">{repo.language} · {new Date(repo.updatedAt).toLocaleDateString()}</div>
                 </button>
               )) : (
-                <button onClick={() => setSelectedRepo('humana-aks-demo')}
+                <button onClick={() => setSelectedRepo('aks-nodeapp-demo')}
                   className={`w-full text-left px-3 py-2.5 rounded-lg border text-xs border-humana-green bg-green-50`}>
-                  <div className="font-semibold text-humana-navy">humana-aks-demo</div>
+                  <div className="font-semibold text-humana-navy">aks-nodeapp-demo</div>
                   <div className="text-gray-400">HCL · Terraform AKS config</div>
                 </button>
               )}
             </div>
             <button onClick={runValidation} disabled={phase === 'validating'} className="w-full btn-primary text-sm justify-center">
-              {phase === 'validating' ? <><Loader2 size={14} className="animate-spin" />Validating...</> : <><Play size={14} fill="currentColor" />Run IDA Validation</>}
+              {phase === 'validating' ? <><Loader2 size={14} className="animate-spin" />Validating...</> : <><Play size={14} fill="currentColor" />Run Compliance Validation</>}
             </button>
           </div>
 
@@ -144,7 +144,7 @@ export default function CloudOnboardingAgent() {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="card-humana p-4 flex items-center gap-4">
               <div className={`text-5xl font-black px-5 py-3 rounded-xl border-2 ${GRADE_STYLE[grade]}`}>{grade}</div>
               <div>
-                <div className="font-bold text-humana-navy text-lg">IDA Grade {grade}</div>
+                <div className="font-bold text-humana-navy text-lg">Compliance Grade {grade}</div>
                 {summary && (
                   <div className="flex gap-3 mt-1 text-xs">
                     <span className="text-humana-green font-semibold">{summary.passed} passed</span>
@@ -160,7 +160,7 @@ export default function CloudOnboardingAgent() {
           {results.length > 0 && (
             <div className="card-humana overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100">
-                <span className="text-sm font-semibold text-humana-navy">12 IDA Compliance Checks</span>
+                <span className="text-sm font-semibold text-humana-navy">12 Governance Compliance Checks</span>
               </div>
               <div className="divide-y divide-gray-50">
                 {results.map((r, i) => (

@@ -4,11 +4,12 @@ import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Circle, PlayCircle } fr
 
 const AGENDA = [
   { time: '0:00', label: 'Home Dashboard', desc: 'Use case catalog overview', path: '/', duration: 10 },
-  { time: '0:10', label: 'IDA Workflow Agent', desc: 'Live Terraform failure analysis', path: '/demo/ida-workflow-agent', duration: 20 },
+  { time: '0:10', label: 'APG Agent', desc: 'Terraform pipeline governance & RCA', path: '/demo/apg-agent', duration: 20 },
   { time: '0:30', label: 'Batch Health Analyzer', desc: '5 batch systems unified', path: '/demo/batch-health-analyzer', duration: 20 },
   { time: '0:50', label: 'RCA + CMDB Agent', desc: '5-Why root cause + CMDB health', path: '/demo/rca-cmdb-agent', duration: 20 },
   { time: '1:10', label: 'AKS Vulnerability Agent', desc: 'CVE scan + compliance', path: '/demo/aks-vulnerability-agent', duration: 15 },
-  { time: '1:25', label: 'Q&A / Catalog Walk', desc: 'Open discussion + use cases', path: '/catalog', duration: 5 },
+  { time: '1:25', label: 'Multi-Cluster Update Agent', desc: 'AI-orchestrated AKS component updates with approval', path: '/demo/aks-helm-propagation', duration: 20 },
+  { time: '1:45', label: 'Q&A / Catalog Walk', desc: 'Open discussion + use cases', path: '/catalog', duration: 5 },
 ]
 
 export default function DemoAgenda() {

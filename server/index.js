@@ -8,12 +8,15 @@ const githubRoutes = require('./routes/github');
 const servicenowRoutes = require('./routes/servicenow');
 const batchRoutes = require('./routes/batch');
 const idaRoutes = require('./routes/ida');
+const apgRoutes = require('./routes/apg');
+const helmRoutes = require('./routes/helm-propagation');
 const aksRoutes = require('./routes/aks');
 const eventsRoutes = require('./routes/events');
 const finopsRoutes = require('./routes/finops');
 const cloudopsRoutes = require('./routes/cloudops');
 const dependenciesRoutes = require('./routes/dependencies');
 const cvitRoutes = require('./routes/cvit');
+const capeRoutes = require('./routes/cape');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,12 +44,15 @@ app.use('/api/github', githubRoutes);
 app.use('/api/snow', servicenowRoutes);
 app.use('/api/batch', batchRoutes);
 app.use('/api/ida', idaRoutes);
+app.use('/api/apg', apgRoutes);
+app.use('/api/helm', helmRoutes);
 app.use('/api/aks', aksRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/finops', finopsRoutes);
 app.use('/api/cloudops', cloudopsRoutes);
 app.use('/api/deps', dependenciesRoutes);
 app.use('/api/cvit', cvitRoutes);
+app.use('/api/cape', capeRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

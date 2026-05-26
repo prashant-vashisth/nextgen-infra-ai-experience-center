@@ -14,7 +14,7 @@ const SEV_CFG = {
 
 export default function DependencyRiskAgent() {
   const [repos, setRepos] = useState([])
-  const [selectedRepo, setSelectedRepo] = useState('humana-aks-demo')
+  const [selectedRepo, setSelectedRepo] = useState('aks-nodeapp-demo')
   const [phase, setPhase] = useState('idle')
   const [scanSteps, setScanSteps] = useState([])
   const [fileResults, setFileResults] = useState([])
@@ -136,7 +136,7 @@ export default function DependencyRiskAgent() {
               <Shield size={14} className="text-indigo-600" />Select Repository to Scan
             </h3>
             <div className="space-y-1.5 mb-4">
-              {(repos.length > 0 ? repos : [{ name: 'humana-aks-demo', language: 'JavaScript' }, { name: 'nextgen-infra-ai-experience-center', language: 'JavaScript' }]).map(repo => (
+              {(repos.length > 0 ? repos : [{ name: 'aks-nodeapp-demo', language: 'JavaScript' }, { name: 'nextgen-infra-ai-experience-center', language: 'JavaScript' }]).map(repo => (
                 <button key={repo.name} onClick={() => setSelectedRepo(repo.name)}
                   className={`w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-all ${selectedRepo === repo.name ? 'border-humana-green bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
                   <div className="font-semibold text-humana-navy">{repo.name}</div>
