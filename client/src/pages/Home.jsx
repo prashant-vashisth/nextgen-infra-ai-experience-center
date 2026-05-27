@@ -694,13 +694,15 @@ export default function Home() {
             </button>
           </div>
         )}
-        {/* ── Slide viewer — updates to matching tower deck on leaf selection ── */}
-        <SlideViewer activeLeaf={activeLeaf} />
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           <ITOpsTowerPanel    tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
           <PlatformTowerPanel tower={platformTower} activeLeaf={activeLeaf} onSelect={handleSelect} />
         </div>
+      </section>
+
+      {/* ── Slide viewer — between tower panels and use case catalog ── */}
+      <section className="px-6 pb-2 max-w-6xl mx-auto">
+        <SlideViewer activeLeaf={activeLeaf} />
       </section>
 
       {/* ── Use Case Catalog ── */}
