@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
+// Generates realistic-looking INC numbers in Humana's observed range (INC47xxxxx–INC48xxxxx)
+let _incSeq = 4782400 + Math.floor(Math.random() * 200);
+function nextINC() { return `INC${_incSeq++}`; }
+let _prbSeq = 98240 + Math.floor(Math.random() * 50);
+function nextPRB() { return `PRB${String(_prbSeq++).padStart(7, '0')}`; }
+let _kbSeq = 1004200 + Math.floor(Math.random() * 100);
+function nextKB()  { return `KB${_kbSeq++}`; }
+
 function snowAxios() {
   const { SNOW_INSTANCE, SNOW_USERNAME, SNOW_PASSWORD } = process.env;
   if (!SNOW_INSTANCE || !SNOW_USERNAME) return null;
@@ -26,7 +34,7 @@ router.post('/incident', async (req, res) => {
   if (!client) {
     await new Promise(r => setTimeout(r, 600));
     return res.json({
-      incident: { number: `INC${Math.floor(Math.random() * 9000000) + 1000000}`, sys_id: `sys-${Date.now()}`, state: 'New', short_description: shortDescription, created_on: new Date().toISOString() },
+      incident: { number: nextINC(), sys_id: `sys-${Date.now()}`, state: 'New', short_description: shortDescription, created_on: new Date().toISOString() },
       mode: 'demo',
     });
   }
@@ -46,7 +54,7 @@ router.post('/incident', async (req, res) => {
   } catch (err) {
     console.error('ServiceNow create incident:', err.response?.status, err.message);
     res.json({
-      incident: { number: `INC${Math.floor(Math.random() * 9000000) + 1000000}`, sys_id: `sys-${Date.now()}`, state: 'New', short_description: shortDescription, created_on: new Date().toISOString() },
+      incident: { number: nextINC(), sys_id: `sys-${Date.now()}`, state: 'New', short_description: shortDescription, created_on: new Date().toISOString() },
       mode: 'demo', error: err.message,
     });
   }
@@ -88,7 +96,7 @@ router.post('/problem', async (req, res) => {
     await new Promise(r => setTimeout(r, 500));
     return res.json({
       problem: {
-        number: `PRB${Math.floor(Math.random() * 900000) + 100000}`,
+        number: nextPRB(),
         sys_id: `sys-prb-${Date.now()}`,
         state: 'Assess',
         short_description: shortDescription,
@@ -110,7 +118,7 @@ router.post('/problem', async (req, res) => {
   } catch (err) {
     console.error('ServiceNow create problem:', err.response?.status, err.message);
     res.json({
-      problem: { number: `PRB${Math.floor(Date.now() / 1000)}`, state: 'Assess', short_description: shortDescription },
+      problem: { number: nextPRB(), state: 'Assess', short_description: shortDescription },
       mode: 'demo', error: err.message,
     });
   }
@@ -153,7 +161,7 @@ router.post('/kb-article', async (req, res) => {
 
   if (!client) {
     return res.json({
-      article: { number: `KB${Math.floor(Math.random() * 9000000) + 1000000}`, title: title || 'AI-Generated KB Article', text: content, created_on: new Date().toISOString() },
+      article: { number: nextKB(), title: title || 'AI-Generated KB Article', text: content, created_on: new Date().toISOString() },
       mode: 'demo',
     });
   }
@@ -169,7 +177,7 @@ router.post('/kb-article', async (req, res) => {
   } catch (err) {
     console.error('ServiceNow KB:', err.response?.status, err.message);
     res.json({
-      article: { number: `KB${Math.floor(Math.random() * 9000000) + 1000000}`, title, text: content, created_on: new Date().toISOString() },
+      article: { number: nextKB(), title, text: content, created_on: new Date().toISOString() },
       mode: 'demo', error: err.message,
     });
   }

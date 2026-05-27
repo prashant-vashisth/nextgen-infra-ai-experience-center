@@ -2,11 +2,11 @@ import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  GitBranch, Server, Shield, Activity, ChevronRight, Zap, Clock,
-  ExternalLink, Building2, Cpu,
+  GitBranch, Server, Shield, Activity, ChevronRight, ChevronDown,
+  Zap, ExternalLink, Building2, Cpu,
 } from 'lucide-react'
 import UseCaseDrawer from '../components/UseCaseDrawer'
-import ITOpsCommandCenter from '../components/ITOpsCommandCenter'
+import { PROGRAM_STATS, TOP_METRICS } from '../data/dashboard2Data'
 
 // ─── Tower taxonomy ───────────────────────────────────────────────────────────
 //
@@ -46,7 +46,7 @@ const TOWERS = [
         children: [
           { id: 'dynatrace', label: 'Dynatrace' },
           { id: 'splunk',    label: 'Splunk' },
-          { id: 'datapowr',  label: 'DataPowr' },
+          { id: 'datapowr',  label: 'DataPower' },
           { id: 'apigee',    label: 'APIGEE' },
           { id: 'graphql',   label: 'GraphQL' },
         ],
@@ -148,6 +148,171 @@ function countForGroup(groupId, tower) {
   if (!group) return 0
   const leafIds = group.children.map(c => c.id)
   return USE_CASES.filter(uc => leafIds.some(lid => uc.subcategories.includes(lid))).length
+}
+
+// ─── AAA (Assist / Augment / Autonomous) data — sourced from USE_CASES_TABLE ──
+
+const AAA_DATA = {
+  // ── Existing (unchanged) ─────────────────────────────────────────────────────
+  2:  { assist: 40, augment: 30, autonomous: 30 },  // Platform Vulnerability Agent
+  6:  { assist: 25, augment: 45, autonomous: 30 },  // Azure/GCP Onboarding Validation
+  9:  { assist: 35, augment: 40, autonomous: 25 },  // APG Workflow Assist
+  19: { assist: 40, augment: 30, autonomous: 30 },  // CVIT Remediation
+  22: { assist: 20, augment: 25, autonomous: 55 },  // Event Mgmt & Self-Heal
+  23: { assist: 25, augment: 50, autonomous: 25 },  // Major Incident Avoidance
+  25: { assist: 30, augment: 45, autonomous: 25 },  // Batch Health Analyzer
+  26: { assist: 25, augment: 35, autonomous: 40 },  // Access & Auth Management
+  37: { assist: 25, augment: 35, autonomous: 40 },  // Compass User Access
+  38: { assist: 20, augment: 30, autonomous: 50 },  // VSTS/Azure DevOps Access
+  39: { assist: 20, augment: 25, autonomous: 55 },  // GitHub Access Automation
+  40: { assist: 30, augment: 35, autonomous: 35 },  // Docker Desktop License
+  41: { assist: 20, augment: 45, autonomous: 35 },  // AI RCA + CMDB Enrichment
+  42: { assist: 15, augment: 45, autonomous: 40 },  // Knowledge Fabric AI
+  // ── Calculated for remaining use cases ──────────────────────────────────────
+  1:  { assist: 30, augment: 40, autonomous: 30 },  // Intelligent Op Support & Troubleshooting
+  3:  { assist: 20, augment: 35, autonomous: 45 },  // Platform Build Agent
+  4:  { assist: 35, augment: 45, autonomous: 20 },  // Code Base Administration
+  5:  { assist: 15, augment: 30, autonomous: 55 },  // Compliance — Secret & Credential Remediation
+  7:  { assist: 35, augment: 45, autonomous: 20 },  // Azure/GCP Onboarding — Code Optimization
+  8:  { assist: 25, augment: 40, autonomous: 35 },  // Configuration Template Creation
+  10: { assist: 35, augment: 40, autonomous: 25 },  // Terraform Debug Agent
+  11: { assist: 30, augment: 45, autonomous: 25 },  // Validate Unit & Integration Test Results
+  12: { assist: 25, augment: 40, autonomous: 35 },  // API Handler Issue Remediation
+  13: { assist: 25, augment: 35, autonomous: 40 },  // AI-Driven Dependency Risk Management
+  14: { assist: 40, augment: 45, autonomous: 15 },  // Capacity Insight and Recommendation
+  15: { assist: 45, augment: 40, autonomous: 15 },  // Conversational Support Agent — Cloud Provisioning
+  16: { assist: 25, augment: 35, autonomous: 40 },  // Container Lifecycle Management
+  17: { assist: 30, augment: 50, autonomous: 20 },  // Design Document Generation
+  18: { assist: 25, augment: 40, autonomous: 35 },  // AI-Led Quality Engineering — QA Validation
+  20: { assist: 30, augment: 40, autonomous: 30 },  // Middleware Upgrade
+  21: { assist: 20, augment: 35, autonomous: 45 },  // AI-Driven OS Image Update and Hardening
+  24: { assist: 25, augment: 40, autonomous: 35 },  // Autonomous Change Validation
+  27: { assist: 50, augment: 35, autonomous: 15 },  // Conversational Agent — Engineer/SRE Assist
+  28: { assist: 20, augment: 30, autonomous: 50 },  // Self-Heal Issues (Node Down, Interface)
+  29: { assist: 30, augment: 40, autonomous: 30 },  // Network Issue Remediation
+  30: { assist: 30, augment: 45, autonomous: 25 },  // Network Configuration — Firewall Management
+  31: { assist: 50, augment: 35, autonomous: 15 },  // Conversational Agent — Network Assist
+  32: { assist: 30, augment: 40, autonomous: 30 },  // Configuration Anomaly Detection
+  33: { assist: 40, augment: 45, autonomous: 15 },  // Code Review / Refactoring & Bug Fixing
+  34: { assist: 40, augment: 45, autonomous: 15 },  // Predictive Capacity Planning & Rightsizing
+  35: { assist: 35, augment: 40, autonomous: 25 },  // Cost Anomaly Detection & Budget Forecasting
+  36: { assist: 20, augment: 35, autonomous: 45 },  // AKS Vulnerability & Compliance AI Remediation
+  43: { assist: 25, augment: 40, autonomous: 35 },  // PCT Automation — Validation Task Management
+  44: { assist: 25, augment: 40, autonomous: 35 },  // PCT Automation — RCA Agent & Health Check
+  45: { assist: 30, augment: 45, autonomous: 25 },  // PCT Automation — Root Cause Analysis Agent
+  47: { assist: 15, augment: 30, autonomous: 55 },  // Multi-Cluster Update Agent
+}
+
+// ─── UC metadata — implementation quarter + AI solution from the plan ─────────
+
+const UC_META = {
+  // ── Q3 FY26 — Live ──────────────────────────────────────────────────────────
+  6:  { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: 'Automated 12-point compliance checklist validation — consistent cloud onboarding quality guaranteed from day one without manual steps' },
+  9:  { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: '50%+ productivity gain on pipeline failures · 40–50% reduction in support requests through self-service AI resolution' },
+  13: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: 'AI continuously scans GitHub repos for CVE-flagged dependencies and auto-creates fix PRs — vulnerability debt eliminated before it reaches production' },
+  22: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: 'AI deduplicates 2,400 alerts/day → 3 actionable incidents with autonomous self-remediation and full incident audit timeline' },
+  25: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: '~60% effort reduction across 2,280 hrs/mo · unified AI monitoring for 5 batch systems with proactive early issue detection' },
+  35: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: 'AI detects spend anomalies within hours and forecasts budget trajectory — monthly surprise overages eliminated with real-time alerting' },
+  36: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: '~80% reduction in CVE exposure window · automated HIPAA compliance verification and AKS vulnerability remediation at cluster scale' },
+  41: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: '2–4 hrs → 10–20 min per problem ticket · CMDB health continuously enriched by AI with missing CIs auto-discovered and corrected' },
+  47: { quarter: 'Q3 FY26', qStatus: 'live',
+        solution: '480 hrs/mo of manual cluster edits → 30 hrs · AI propagates Helm and component updates across all AKS clusters simultaneously' },
+
+  // ── Q4 FY26 — In-Progress ───────────────────────────────────────────────────
+  2:  { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: 'Continuous AI scanning with automated CVE triage — security backlog cleared faster than it accumulates with zero manual handoffs' },
+  14: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: 'AI continuously models workload trends and recommends right-sized capacity — 35% cloud over-provisioning eliminated through predictive sizing' },
+  16: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: 'AI automates image scanning, patching, and governed rollout across 200+ services — compliance maintained continuously without manual sprint cycles' },
+  19: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: 'AI-triaged CVIT backlog with auto-fix capability — 60–70% faster HIPAA CVE clearance, average remediation reduced from 47 to under 15 days' },
+  23: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: '60% effort reduction · 15–25% MTTR improvement · AI coordinates war-room, assigns owners, and maintains a full transparent audit trail' },
+  26: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: '~60% effort reduction · automated provisioning cutting avg access wait from 5 days to hours with SailPoint and Azure AD integration' },
+  28: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: 'AI correlates network signals, identifies root cause, and executes remediation autonomously — 47 min network MTTR reduced to under 10 minutes' },
+  32: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: 'AI monitors configuration state continuously and flags drift within minutes — 18-day detection gaps eliminated with automated remediation triggers' },
+  37: { quarter: 'Q4 FY26', qStatus: 'in-progress',
+        solution: '~60% effort reduction · Compass access requests fulfilled in hours, not the previous 3-day manual multi-step workflow' },
+
+  // ── Q1 FY27 — Planned ───────────────────────────────────────────────────────
+  1:  { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI-powered diagnosis resolves Terraform and Ansible incidents autonomously — 4+ hrs of expert debugging reduced to guided resolution in minutes' },
+  3:  { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI-orchestrated onboarding validates, provisions, and configures modules automatically — 2-week manual effort compressed to hours with zero rework' },
+  10: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI-assisted Terraform debug resolves state corruption and plan failures in minutes — expert diagnosis bottleneck eliminated from incident workflow' },
+  18: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI-driven QA delivers higher regression coverage and accelerates release cycles — 47% coverage gap closed through automated test generation and analysis' },
+  20: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI orchestrates middleware upgrades with pre/post validation and automated rollback — 6-week change windows compressed to coordinated automated deployments' },
+  24: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI validates changes against CMDB, risk rules, and historical patterns in minutes — 3-day validation bottleneck eliminated without compromising governance' },
+  29: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI diagnoses WLC and device issues remotely and applies standard remediation patterns — on-site engineer dispatches reduced by 60%+' },
+  33: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: 'AI performs security code review in parallel with development — 3-week review backlogs eliminated and vulnerabilities caught at commit time' },
+  38: { quarter: 'Q1 FY27', qStatus: 'planned',
+        solution: '~65–70% effort reduction · ADO access provisioned automatically within SLA — average 7-day wait compressed to same-day automated completion' },
+
+  // ── Q2 FY27 — Planned ───────────────────────────────────────────────────────
+  4:  { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI triages bug reports, generates targeted patches, and opens reviewed PRs automatically — developers stay in flow and ship fixes without context switching' },
+  7:  { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI scans IaC patterns and auto-generates optimized rewrites — 23% cloud spend inefficiency eliminated from the moment of provisioning' },
+  11: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI auto-classifies test failures by root cause and surfaces only actionable issues — 20% of sprint capacity returned from test-triage to feature delivery' },
+  17: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI generates and continuously refreshes architecture documentation from live code and infra state — docs stay accurate without any engineer maintenance effort' },
+  21: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'Automated CIS/STIG hardening across 3,000 VMs — consistent, auditable security posture achieved in hours versus a 4-month manual rollout' },
+  27: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI assistant handles L1 ops queries via Teams from live KB and runbooks — SREs reclaim 30% of time for high-value engineering and strategic work' },
+  30: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI validates, tests, and implements firewall rule changes with automated CAB workflow — 10-day manual cycles compressed to hours with full audit trail' },
+  34: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI continuously right-sizes cloud resources using demand forecasts — $2.4M annual over-provisioning waste reclaimed through automated recommendations' },
+  39: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: '~65–70% effort reduction · GitHub org access auto-provisioned with full audit trail — 5-day queue wait eliminated through AI-driven approval workflow' },
+  43: { quarter: 'Q2 FY27', qStatus: 'planned',
+        solution: 'AI orchestrates post-change validation tasks automatically — 8-day manual cycles cut to under 2 days with the 22% rework rate eliminated entirely' },
+
+  // ── Q3 FY27 — Planned ───────────────────────────────────────────────────────
+  5:  { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'Near-real-time secret detection with automated vault rotation and repo remediation — credential exposure window reduced from days to minutes' },
+  8:  { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'AI generates standards-compliant configuration templates in minutes — 8 hours of senior engineer effort per template eliminated entirely' },
+  12: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'AI detects API handler failures with automated downstream protection — cascading outages prevented and service recovery time drastically reduced' },
+  15: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'Conversational AI handles cloud provisioning end-to-end via Teams — L1 self-service eliminates senior engineer interrupt-driven support at scale' },
+  31: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'AI handles 400 routine network queries/mo via Teams, escalating only genuine anomalies — network engineers fully freed from L1 interrupt work' },
+  40: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: '~70% effort reduction · Docker Desktop licenses auto-fulfilled with compliance tracking — multi-step finance and IT approval chain fully automated' },
+  42: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: '~60% KB effort reduction · AI-curated knowledge always current — engineers find answers in seconds, not 45 minutes per incident' },
+  44: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'AI runs continuous post-change health checks and isolates degradations in real time — 4-hour manual validation windows replaced by instant automated detection' },
+  45: { quarter: 'Q3 FY27', qStatus: 'planned',
+        solution: 'AI correlates Splunk, Dynatrace, and ServiceNow signals to pinpoint post-change root cause in minutes — 6+ hour investigations resolved automatically' },
+}
+
+const Q_STATUS_STYLE = {
+  live:          { bg: '#dcfce7', color: '#15803d', dot: '●' },
+  'in-progress': { bg: '#dcfce7', color: '#15803d', dot: '●' },
+  planned:       { bg: '#dcfce7', color: '#15803d', dot: '○' },
 }
 
 // ─── Stat chips ───────────────────────────────────────────────────────────────
@@ -266,39 +431,140 @@ function PlatformTowerPanel({ tower, activeLeaf, onSelect }) {
   )
 }
 
+// ─── Vertical AAA bar chart ───────────────────────────────────────────────────
+
+function VerticalAAABars({ assist, augment, autonomous }) {
+  const rows = [
+    { label: 'Assist',     pct: assist,     bg: '#BFDBFE', color: '#1E40AF' },
+    { label: 'Augment',    pct: augment,    bg: '#60A5FA', color: '#1E3A8A' },
+    { label: 'Autonomous', pct: autonomous, bg: '#1D4ED8', color: '#fff'    },
+  ]
+  return (
+    <div className="flex flex-col gap-0.5">
+      {rows.map(r => (
+        <div key={r.label} className="flex items-center gap-1.5">
+          <div
+            className="rounded flex items-center justify-center shrink-0"
+            style={{ backgroundColor: r.bg, width: 32, height: 16 }}
+          >
+            <span style={{ fontSize: 9, fontWeight: 800, color: r.color, lineHeight: 1 }}>{r.pct}%</span>
+          </div>
+          <span style={{ fontSize: 9, color: '#6B7280' }}>{r.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Use-case card ────────────────────────────────────────────────────────────
 
 function UseCaseCard({ uc, index, onSelect }) {
+  const aaa  = AAA_DATA[uc.id]
+  const meta = UC_META[uc.id]
+  const qStyle = meta ? Q_STATUS_STYLE[meta.qStatus] : null
+  const savedHrs = uc.beforeHrs - uc.afterHrs
+  const savedPct = Math.round((savedHrs / uc.beforeHrs) * 100)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.3 }}
       onClick={() => onSelect(uc)}
-      className={`card-humana p-4 flex flex-col gap-2 hover:shadow-lg transition-shadow relative cursor-pointer
+      className={`card-humana flex flex-col hover:shadow-lg transition-shadow cursor-pointer overflow-hidden
         ${uc.live ? 'border border-humana-green/40' : ''}`}
     >
-      {uc.live && (
-        <div className="absolute top-3 right-3">
-          <span className="badge-live"><span className="live-dot" />LIVE</span>
+      {/* ── Header: id · title · live badge · quarter ── */}
+      <div className="px-4 pt-3.5 pb-2.5 flex items-start justify-between gap-2">
+        <div className="flex items-start gap-1.5 min-w-0">
+          <span className="text-xs font-bold text-gray-300 shrink-0 mt-px">#{uc.id}</span>
+          <h3 className="text-sm font-bold text-humana-navy leading-snug">{uc.title}</h3>
         </div>
-      )}
-      <div className="flex items-start gap-2 pr-16">
-        <span className="text-xs font-bold text-gray-400 shrink-0 w-6">#{uc.id}</span>
-        <h3 className="text-sm font-semibold text-humana-navy leading-tight">{uc.title}</h3>
+        <div className="flex flex-col items-end gap-1 shrink-0 ml-1">
+          {meta && (
+            <span
+              className="text-xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+              style={{ backgroundColor: qStyle.bg, color: qStyle.color, fontSize: 9 }}
+            >
+              {qStyle.dot} {meta.quarter}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs bg-humana-navy/10 text-humana-navy px-2 py-0.5 rounded-full font-medium">{uc.category}</span>
-        {uc.tools.slice(0, 3).map(tool => (
-          <span key={tool} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tool}</span>
+
+      {/* ── Category + tools ── */}
+      <div className="px-4 pb-2.5 flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs bg-humana-navy/10 text-humana-navy px-2 py-0.5 rounded-full font-semibold">{uc.category}</span>
+        {uc.tools.slice(0, 2).map(t => (
+          <span key={t} className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{t}</span>
         ))}
+        {uc.tools.length > 2 && (
+          <span className="text-xs text-gray-400">+{uc.tools.length - 2}</span>
+        )}
       </div>
-      <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{uc.problem}</p>
-      <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-between">
+
+      <div className="border-t border-gray-100 mx-4" />
+
+      {/* ── Challenge ── */}
+      <div className="px-4 pt-2.5 pb-2">
+        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Challenge</div>
+        <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{uc.problem}</p>
+      </div>
+
+      {/* ── AI Solution ── */}
+      {meta?.solution && (
+        <>
+          <div className="border-t border-gray-100 mx-4" />
+          <div className="px-4 pt-2.5 pb-2">
+            <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#00A651' }}>AI Solution</div>
+            <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{meta.solution}</p>
+          </div>
+        </>
+      )}
+
+      <div className="border-t border-gray-100 mx-4" />
+
+      {/* ── Impact: before / savings / after + vertical AAA bars ── */}
+      <div className="px-4 pt-2.5 pb-3">
+        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Impact</div>
+        <div className="flex items-end gap-2">
+
+          {/* Before / arrow / After */}
+          <div className="flex items-end gap-2 flex-1">
+            <div className="flex flex-col items-center bg-gray-50 rounded-lg px-3 py-2 flex-1">
+              <span className="text-gray-400 leading-none" style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Before</span>
+              <span className="text-base font-black text-gray-600 leading-tight">{uc.beforeHrs.toLocaleString()}</span>
+              <span className="text-gray-400 leading-none" style={{ fontSize: 8 }}>hrs/mo</span>
+            </div>
+
+            <div className="flex flex-col items-center pb-1">
+              <span className="text-sm font-black text-humana-green leading-none">↓{savedPct}%</span>
+              <span className="text-gray-400 leading-none mt-0.5" style={{ fontSize: 8 }}>{savedHrs.toLocaleString()} hrs</span>
+            </div>
+
+            <div className="flex flex-col items-center rounded-lg px-3 py-2 flex-1" style={{ backgroundColor: 'rgba(0,166,81,0.06)', border: '1px solid rgba(0,166,81,0.18)' }}>
+              <span className="leading-none" style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#00A651' }}>After</span>
+              <span className="text-base font-black text-humana-navy leading-tight">{uc.afterHrs.toLocaleString()}</span>
+              <span className="leading-none" style={{ fontSize: 8, color: '#00A651' }}>hrs/mo</span>
+            </div>
+          </div>
+
+          {/* Vertical AAA bars */}
+          {aaa && (
+            <div className="shrink-0">
+              <div className="text-gray-400 mb-1" style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI Split</div>
+              <VerticalAAABars assist={aaa.assist} augment={aaa.augment} autonomous={aaa.autonomous} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Footer ── */}
+      <div className="mt-auto px-4 pb-3 pt-2 border-t border-gray-100 flex items-center justify-between">
         <span className="text-xs text-humana-teal font-medium flex items-center gap-1">
           View details <ChevronRight size={10} />
         </span>
-        {uc.live && uc.path ? (
+        {uc.live && uc.path && (
           <Link
             to={uc.path}
             onClick={e => e.stopPropagation()}
@@ -306,8 +572,6 @@ function UseCaseCard({ uc, index, onSelect }) {
           >
             Open Demo <ExternalLink size={10} />
           </Link>
-        ) : (
-          <span className="badge-coming-soon">Coming Soon</span>
         )}
       </div>
     </motion.div>
@@ -319,6 +583,7 @@ function UseCaseCard({ uc, index, onSelect }) {
 export default function Home() {
   const [activeLeaf, setActiveLeaf] = useState(null)
   const [selectedUC, setSelectedUC] = useState(null)
+  const [showProgramDetails, setShowProgramDetails] = useState(false)
   const towersRef  = useRef(null)
   const catalogRef = useRef(null)
 
@@ -365,26 +630,69 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── IT Ops Command Center ── */}
-      <ITOpsCommandCenter towersRef={towersRef} />
-
       {/* ── Towers in Scope ── */}
       <section ref={towersRef} className="px-6 pt-6 pb-2 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-humana-navy flex items-center gap-2">
+
+        {/* All Towers — clickable parent label */}
+        <button
+          onClick={() => setShowProgramDetails(s => !s)}
+          className="w-full flex items-center justify-between mb-4 group cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
             <Building2 size={16} className="text-humana-teal" />
-            Towers in Scope
-            <span className="text-xs font-normal text-gray-400">— click a sub-category to filter use cases</span>
-          </h2>
-          {activeLeaf && (
+            <span className="text-base font-bold text-humana-navy">All Towers</span>
+          </div>
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform duration-300 ${showProgramDetails ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {/* Expandable Program Outcomes */}
+        <AnimatePresence>
+          {showProgramDetails && (
+            <motion.div
+              key="program-outcomes"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              style={{ overflow: 'hidden' }}
+              className="mb-5"
+            >
+              {/* TOP_METRICS */}
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                {TOP_METRICS.map((m, i) => (
+                  <div
+                    key={m.label}
+                    className="bg-white rounded-xl shadow-sm p-4 flex flex-col gap-1 relative overflow-hidden"
+                    style={{ borderLeft: '4px solid #00A651' }}
+                  >
+                    <div className="text-2xl font-black text-humana-navy leading-none">
+                      {m.value.toLocaleString()}<span className="text-humana-green text-lg ml-0.5">{m.suffix}</span>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-700 mt-1 leading-tight">{m.label}</div>
+                    <div className="text-xs text-gray-400">{m.subLabel}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {activeLeaf && (
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-gray-500">
+              Filtered by: <span className="font-semibold text-humana-navy">{activeLabel}</span>
+            </span>
             <button
               onClick={() => setActiveLeaf(null)}
               className="text-xs text-gray-500 hover:text-humana-navy flex items-center gap-1 border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-white transition-colors"
             >
               ✕ Clear filter
             </button>
-          )}
-        </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           <ITOpsTowerPanel    tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
           <PlatformTowerPanel tower={platformTower} activeLeaf={activeLeaf} onSelect={handleSelect} />
@@ -398,7 +706,7 @@ export default function Home() {
             <Activity size={16} className="text-humana-teal" />
             {activeLabel
               ? <><span>{activeLabel}</span><span className="text-sm text-gray-400 font-normal ml-1">— {filtered.length} use cases</span></>
-              : <>Use Case Catalog <span className="text-sm text-gray-400 font-normal">({filtered.length})</span></>
+              : <>Use Case Catalog</>
             }
           </h2>
           <Link to="/catalog" className="text-sm text-humana-green font-semibold flex items-center gap-1 hover:underline">
@@ -431,7 +739,7 @@ export default function Home() {
           <div className="flex items-center gap-2 mb-6">
             <Zap size={16} className="text-humana-green" />
             <h2 className="text-base font-bold text-white">Live Interactive Demos</h2>
-            <span className="text-white/40 text-xs">— 9 fully wired demos · real AI · real APIs · click to launch</span>
+            <span className="text-white/40 text-xs">— 11 live demos · real AI · real APIs · click to launch</span>
           </div>
 
           {/* IT Operations & Infrastructure */}
@@ -480,6 +788,8 @@ export default function Home() {
                 { path: '/demo/apg-agent',                title: 'APG Workflow Assist Agent',      desc: 'Terraform pipeline governance — A–E grade scoring, RCA, error classification',    color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
                 { path: '/demo/dependency-risk-agent',    title: 'Dependency Risk Management',     desc: 'Scans real GitHub repos for CVEs, AI risk analysis, creates fix PR automatically', color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', domain: 'Automation Eng',   icon: Shield    },
                 { path: '/demo/aks-helm-propagation',     title: 'Multi-Cluster Update Agent',     desc: 'AI-driven component updates (nginx, cert-manager, Prometheus) across all AKS clusters', color: 'from-[#0a5c44] to-[#063d2e]', badge: 'UC #47', domain: 'Cloud Eng',        icon: GitBranch },
+                { path: '/demo/aks-vulnerability-agent', title: 'AKS Vulnerability Scanner',      desc: 'Live CVE scan on AKS cluster — Prisma Cloud integration, HIPAA compliance checks, auto-remediation', color: 'from-rose-800 to-rose-950', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
+                { path: '/demo/cape-rightsizing-agent',  title: 'CAPE Rightsizing Agent',         desc: 'AI rightsizes live Azure SQL, Storage & VMs — real cost savings with Groq-powered recommendations', color: 'from-cyan-700 to-cyan-900', badge: 'UC #34', domain: 'FinOps / Cloud', icon: Server },
               ].map(demo => (
                 <Link key={demo.path} to={demo.path} className="group">
                   <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>

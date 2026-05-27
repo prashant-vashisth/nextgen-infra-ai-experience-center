@@ -255,7 +255,7 @@ router.post('/create-p1-incident', async (req, res) => {
   // Fallback
   res.json({
     incident: {
-      number: `INC${Math.floor(Math.random() * 9000000) + 1000000}`,
+      number: `INC${4782400 + Math.floor(Math.random() * 300)}`,
       sys_id: `fallback-${Date.now()}`,
       priority: 'P1 — Critical',
       state: 'New',

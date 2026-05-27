@@ -4,7 +4,7 @@ import {
   Shield, CheckCircle2, Loader2, Play, Zap, GitPullRequest, FileText,
   ThumbsUp, ThumbsDown, ChevronRight, Activity, Users, Database,
   AlertTriangle, ExternalLink, GitBranch, Server, Bell, RefreshCw,
-  Package, Lock, ArrowRight,
+  Package, Lock, ArrowRight, Cpu, RotateCcw, ShieldAlert,
 } from 'lucide-react'
 import LiveIndicator from '../components/LiveIndicator'
 
@@ -418,6 +418,30 @@ export default function CVITWorkflowAgent() {
         <StageBadge n={2} label="Create ServiceNow P1"     active={stage === 2 && !stage2Done} done={stage2Done} />
         <ArrowRight size={14} className="text-gray-300 shrink-0" />
         <StageBadge n={3} label="CVIT Multi-Agent Workflow" active={stage === 3 && !stage3Done} done={stage3Done} />
+      </div>
+
+      {/* ── Scale-of-Problem Stats Bar ──────────────────────────────────────── */}
+      <div className="bg-humana-navy border-b border-white/10 px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
+          <span className="text-white/50 text-xs font-semibold uppercase tracking-widest mr-2">Humana · Live as of May 26, 2026</span>
+          {[
+            { label: 'Open Tickets',           value: '6,189',  sub: 'total backlog',         color: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/30' },
+            { label: 'Open Avg / Month',        value: '432',    sub: 'monthly run rate',      color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30' },
+            { label: 'Closed This Month',       value: '243',    sub: 'May 2026',              color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/30' },
+            { label: 'Closed Avg / Month',      value: '316.85', sub: 'historical avg',        color: 'text-humana-green', bg: 'bg-green-500/10 border-green-500/30' },
+          ].map(s => (
+            <div key={s.label} className={`flex items-center gap-2.5 border rounded-lg px-3 py-1.5 ${s.bg}`}>
+              <div>
+                <div className={`text-base font-black leading-none ${s.color}`}>{s.value}</div>
+                <div className="text-[10px] text-white/40 leading-tight mt-0.5">{s.sub}</div>
+              </div>
+              <div className="text-white/40 text-[10px] font-semibold leading-tight max-w-20">{s.label}</div>
+            </div>
+          ))}
+          <div className="ml-auto text-[11px] text-white/40 italic hidden lg:block">
+            At current close rate, backlog clears in <span className="text-white/70 font-semibold">~14 months</span> without AI
+          </div>
+        </div>
       </div>
 
       <div className="p-4 max-w-7xl mx-auto space-y-4">
@@ -908,38 +932,131 @@ export default function CVITWorkflowAgent() {
                   <div className="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Human-in-Loop</div>
 
                   <AnimatePresence>
-                    {humanPending?.action === 'approve' && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className="mx-3 mb-3 bg-amber-50 border border-amber-300 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
-                          <span className="text-amber-700 font-bold text-sm">Approval Required</span>
-                        </div>
-                        <div className="text-xs text-gray-700 mb-3 leading-relaxed">
-                          Change <span className="font-mono text-amber-700">{humanPending.changeTicket?.number}</span> awaits sign-off.
-                          Risk: <span className={`font-bold ${humanPending.cve?.cvss >= 8 ? 'text-red-600' : 'text-amber-600'}`}>
-                            {humanPending.cve?.cvss >= 8 ? 'HIGH' : 'MEDIUM'} (CVSS {humanPending.cve?.cvss || humanPending.cve?.cvss_score})
-                          </span>
-                        </div>
-                        <div className="space-y-1.5 text-xs mb-3">
-                          <div className="text-gray-500">CVE: <span className="text-gray-800 font-mono">{humanPending.cve?.id || humanPending.cve?.cve_id}</span></div>
-                          <div className="text-gray-500">Package: <span className="text-gray-800">{humanPending.cve?.component} → {humanPending.cve?.patchVersion}</span></div>
-                          <div className="text-gray-500">Namespace: <span className="text-humana-teal">{humanPending.cve?.namespace}</span></div>
-                        </div>
-                        <div className="mb-3">
-                          <input value={approverName} onChange={e => setApproverName(e.target.value)} placeholder="Approver name"
-                            className="w-full bg-white border border-gray-300 text-gray-800 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-humana-green" />
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={handleApprove} className="flex-1 flex items-center justify-center gap-1.5 bg-humana-green hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg">
-                            <ThumbsUp size={12} />Approve
-                          </button>
-                          <button onClick={handleReject} className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg">
-                            <ThumbsDown size={12} />Reject
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
+                    {humanPending?.action === 'approve' && (() => {
+                      const cve       = humanPending.cve || {}
+                      const cvss      = cve.cvss_score || cve.cvss || 0
+                      const isHigh    = cvss >= 9
+                      const riskLabel = isHigh ? 'CRITICAL' : cvss >= 7 ? 'HIGH' : 'MEDIUM'
+                      const riskColor = isHigh ? 'bg-red-600 text-white' : cvss >= 7 ? 'bg-orange-500 text-white' : 'bg-amber-500 text-white'
+                      const hipaaNS   = ['claims-processing', 'member-portal', 'pharmacy-services', 'auth-gateway']
+                      const isHipaa   = hipaaNS.includes(cve.namespace)
+                      const snowBase  = 'https://dev249496.service-now.com'
+                      const chgUrl    = humanPending.changeTicket?.number
+                        ? `${snowBase}/nav_to.do?uri=change_request.do?sysparm_query=number=${humanPending.changeTicket.number}`
+                        : null
+                      const summary   = cve.agentSummary || ''
+                      return (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                          className="mx-3 mb-3 bg-amber-50 border border-amber-300 rounded-xl overflow-hidden">
+                          {/* Header */}
+                          <div className="px-4 py-2.5 bg-amber-100 border-b border-amber-200 flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                            <span className="text-amber-800 font-bold text-sm">Approval Required</span>
+                            <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${riskColor}`}>{riskLabel} {cvss}</span>
+                          </div>
+
+                          <div className="p-3 space-y-3">
+                            {/* Change ticket link */}
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-500">Change Request</span>
+                              {chgUrl ? (
+                                <a href={chgUrl} target="_blank" rel="noreferrer"
+                                  className="font-mono text-amber-700 hover:underline flex items-center gap-1">
+                                  {humanPending.changeTicket.number}<ExternalLink size={9} />
+                                </a>
+                              ) : (
+                                <span className="font-mono text-amber-700">{humanPending.changeTicket?.number}</span>
+                              )}
+                            </div>
+
+                            {/* CVE details card */}
+                            <div className="bg-white rounded-lg border border-amber-200 p-2.5 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono text-xs font-bold text-red-700">{cve.id || cve.cve_id}</span>
+                                {cve.published && <span className="text-[10px] text-gray-400">{cve.published}</span>}
+                              </div>
+                              <p className="text-xs text-gray-700 leading-relaxed">
+                                {cve.description || 'Vulnerability requires upgrade to patched component version.'}
+                              </p>
+                              {cve.exploitability && (
+                                <div className="flex items-center gap-3 pt-0.5 text-xs">
+                                  <span className="text-gray-500">Exploit score: <span className="font-semibold text-orange-600">{cve.exploitability}/4.0</span></span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Affected resources */}
+                            <div className="space-y-1 text-xs">
+                              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Affected Resources</div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Component</span>
+                                <span className="text-gray-800">
+                                  <span className="text-red-500">{cve.component} {cve.version}</span>
+                                  <span className="text-gray-400 mx-1">→</span>
+                                  <span className="text-green-600">{cve.patchVersion}</span>
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Namespace</span>
+                                <span className="text-humana-teal font-medium">{cve.namespace}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Pods at risk</span>
+                                <span className="text-gray-800">3 pods</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Cluster</span>
+                                <span className="text-gray-700 text-[10px]">humana-prod-aks-eastus</span>
+                              </div>
+                            </div>
+
+                            {/* HIPAA compliance flag */}
+                            {isHipaa && (
+                              <div className="bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-red-700">
+                                  <ShieldAlert size={11} />HIPAA-Regulated Namespace
+                                </div>
+                                <p className="text-[11px] text-red-600 mt-0.5 leading-relaxed">
+                                  Unpatched CVE in <span className="font-semibold">{cve.namespace}</span> risks PHI exposure. Violates HIPAA §164.312(a)(1) technical safeguards.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* AI risk assessment */}
+                            {summary && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-700 mb-1 uppercase tracking-wide">
+                                  <Cpu size={10} />AI Risk Assessment
+                                </div>
+                                <p className="text-[11px] text-gray-700 leading-relaxed">
+                                  {summary.length > 290 ? summary.slice(0, 290) + '…' : summary}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Rollback safety */}
+                            <div className="flex items-start gap-1.5 text-[11px] text-gray-500">
+                              <RotateCcw size={10} className="shrink-0 mt-0.5" />
+                              <span>Zero-downtime rolling update. Auto-rollback on readiness probe failure.</span>
+                            </div>
+
+                            {/* Approver input */}
+                            <input value={approverName} onChange={e => setApproverName(e.target.value)} placeholder="Your name (approver)"
+                              className="w-full bg-white border border-gray-300 text-gray-800 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-humana-green" />
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2">
+                              <button onClick={handleApprove} className="flex-1 flex items-center justify-center gap-1.5 bg-humana-green hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg">
+                                <ThumbsUp size={12} />Approve
+                              </button>
+                              <button onClick={handleReject} className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg">
+                                <ThumbsDown size={12} />Reject
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )
+                    })()}
 
                     {humanPending?.action === 'execute' && (
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}

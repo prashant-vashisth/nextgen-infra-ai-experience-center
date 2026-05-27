@@ -183,7 +183,7 @@ router.post('/self-heal', async (req, res) => {
     stepsExecuted: incident.selfHeal,
     duration: '3m 42s',
     newState: 'resolved',
-    snowIncident: `INC${Math.floor(Math.random() * 9000000) + 1000000}`,
+    snowIncident: `INC${4782400 + Math.floor(Math.random() * 300)}`,
   });
 });
 

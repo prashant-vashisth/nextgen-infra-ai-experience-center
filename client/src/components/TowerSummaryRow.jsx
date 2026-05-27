@@ -1,241 +1,264 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { USE_CASES_TABLE } from '../data/dashboard2Data'
 
-function StatusBadge({ status }) {
-  if (status === 'live') return (
-    <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full font-medium">
-      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
-      Live
-    </span>
-  )
-  if (status === 'in-progress') return (
-    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium">In Progress</span>
-  )
+function StatusBadge({ count, label, color }) {
+  if (!count) return null
   return (
-    <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-medium">Planned</span>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+      {count} {label}
+    </span>
   )
 }
 
 function DonutChart({ live, inProgress, planned, color }) {
   const total = live + inProgress + planned
   if (total === 0) return null
-  const r = 28
-  const circ = 2 * Math.PI * r
-  const liveLen     = (live / total) * circ
-  const ipLen       = (inProgress / total) * circ
-  const plannedLen  = (planned / total) * circ
+
+  const radius = 28
+  const circumference = 2 * Math.PI * radius
+  const liveAngle     = (live / total) * circumference
+  const inProgAngle   = (inProgress / total) * circumference
+  const plannedAngle  = (planned / total) * circumference
+
+  const segments = [
+    { value: liveAngle,    stroke: '#00A651', offset: 0 },
+    { value: inProgAngle,  stroke: '#F59E0B', offset: liveAngle },
+    { value: plannedAngle, stroke: '#D1D5DB', offset: liveAngle + inProgAngle },
+  ]
 
   return (
-    <svg width="72" height="72" viewBox="0 0 72 72" className="shrink-0">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="#f3f4f6" strokeWidth="7" />
-      {planned > 0 && (
-        <circle cx="36" cy="36" r={r} fill="none" stroke="#d1d5db" strokeWidth="7"
-          strokeDasharray={`${plannedLen} ${circ}`}
-          strokeDashoffset={-(liveLen + ipLen)}
-          transform="rotate(-90 36 36)" />
-      )}
-      {inProgress > 0 && (
-        <circle cx="36" cy="36" r={r} fill="none" stroke="#F59E0B" strokeWidth="7"
-          strokeDasharray={`${ipLen} ${circ}`}
-          strokeDashoffset={-liveLen}
-          transform="rotate(-90 36 36)" />
-      )}
-      {live > 0 && (
-        <circle cx="36" cy="36" r={r} fill="none" stroke={color} strokeWidth="7"
-          strokeDasharray={`${liveLen} ${circ}`}
-          strokeDashoffset={0}
-          transform="rotate(-90 36 36)" />
-      )}
-      <text x="36" y="33" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#002855">{total}</text>
-      <text x="36" y="46" textAnchor="middle" fontSize="8" fill="#9ca3af">UCs</text>
-    </svg>
-  )
-}
-
-function MiniBarChart({ before, after, savedHrs, savedPct }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400 w-12 shrink-0">Before</span>
-        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 0.9, delay: 0.3 }}
-            className="h-full rounded-full bg-red-300"
+    <div className="flex flex-col items-center gap-1">
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r={radius} fill="none" stroke="#F3F4F6" strokeWidth="10" />
+        {segments.filter(s => s.value > 0).map((seg, i) => (
+          <circle
+            key={i}
+            cx="36" cy="36" r={radius}
+            fill="none"
+            stroke={seg.stroke}
+            strokeWidth="10"
+            strokeDasharray={`${seg.value} ${circumference - seg.value}`}
+            strokeDashoffset={-seg.offset + circumference * 0.25}
+            style={{ transition: 'stroke-dasharray 1s ease' }}
           />
-        </div>
-        <span className="text-xs text-gray-500 w-18 shrink-0">{before.toLocaleString()} Hrs</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400 w-12 shrink-0">After</span>
-        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${(after / before) * 100}%` }}
-            transition={{ duration: 0.9, delay: 0.5 }}
-            className="h-full rounded-full bg-humana-green"
-          />
-        </div>
-        <span className="text-xs text-humana-green w-18 shrink-0">{after.toLocaleString()} Hrs</span>
-      </div>
-      <div className="text-xs font-semibold text-humana-green pt-0.5">
-        {savedHrs.toLocaleString()} Hrs/Mo saved ({savedPct}%)
+        ))}
+        <text x="36" y="40" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#002855">{total}</text>
+      </svg>
+      <div className="flex items-center gap-2 text-xs">
+        {live > 0      && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />{live} Live</span>}
+        {inProgress > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />{inProgress} WIP</span>}
+        {planned > 0   && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />{planned} Plan</span>}
       </div>
     </div>
   )
 }
 
-function ToolChip({ name }) {
+function MiniBarChart({ before, after, saved, pct, color, keyMetrics }) {
+  if (!before && keyMetrics) {
+    return (
+      <div className="flex flex-col gap-2 justify-center h-full">
+        {keyMetrics.map((m, i) => (
+          <div key={i} className="text-sm font-semibold text-humana-navy">{m}</div>
+        ))}
+      </div>
+    )
+  }
+  if (!before) return null
+
+  const maxVal = before
+  const beforePct = 100
+  const afterPct  = Math.round((after / before) * 100)
+
   return (
-    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">{name}</span>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-12 shrink-0">Before</span>
+          <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${beforePct}%` }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="h-full rounded-full bg-red-200"
+            />
+          </div>
+          <span className="text-xs font-semibold text-gray-600 w-20 text-right">{before.toLocaleString()} Hrs/Mo</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-12 shrink-0">After</span>
+          <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${afterPct}%` }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="h-full rounded-full"
+              style={{ backgroundColor: color }}
+            />
+          </div>
+          <span className="text-xs font-semibold text-gray-600 w-20 text-right">{after.toLocaleString()} Hrs/Mo</span>
+        </div>
+      </div>
+      <div className="text-sm font-bold text-humana-navy">
+        {saved.toLocaleString()} Hrs/Mo saved
+        <span className="text-humana-green ml-1">({pct}%)</span>
+      </div>
+    </div>
   )
 }
 
-function MiniUCTable({ useCases, color }) {
+function InlineUCTable({ towerUCs }) {
+  const STATUS_STYLES = {
+    live:        { bg: 'bg-green-100 text-green-800', dot: '●', dotColor: 'text-green-500 animate-pulse' },
+    'in-progress':{ bg: 'bg-amber-100 text-amber-800',  dot: '●', dotColor: 'text-amber-400' },
+    planned:     { bg: 'bg-gray-100 text-gray-600',   dot: '○', dotColor: 'text-gray-400' },
+  }
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs min-w-[640px]">
+      <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-gray-200">
-            <th className="text-left pb-2 pr-3 text-gray-400 font-medium">ID</th>
-            <th className="text-left pb-2 pr-3 text-gray-400 font-medium">Use Case</th>
-            <th className="text-left pb-2 pr-3 text-gray-400 font-medium">Before</th>
-            <th className="text-left pb-2 pr-3 text-gray-400 font-medium">After</th>
-            <th className="text-left pb-2 pr-3 text-gray-400 font-medium">Savings</th>
-            <th className="text-left pb-2 text-gray-400 font-medium">Status</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold w-28">#</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold">Use Case</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold hidden md:table-cell">Before</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold hidden md:table-cell">After</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold">Savings</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold">Status</th>
+            <th className="text-left py-2 px-3 text-gray-500 font-semibold w-20">Action</th>
           </tr>
         </thead>
         <tbody>
-          {useCases.map((uc, i) => (
-            <motion.tr
-              key={uc.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.05 }}
-              className="border-b border-gray-100 hover:bg-white"
-            >
-              <td className="py-2 pr-3 font-mono text-gray-400 whitespace-nowrap">{uc.id}</td>
-              <td className="py-2 pr-3 text-gray-700 font-medium">
-                <span>{uc.name}</span>
-                {uc.liveDemo && (
-                  <Link
-                    to={uc.demoRoute}
-                    className="ml-2 text-humana-green font-bold hover:underline"
-                    onClick={e => e.stopPropagation()}
-                  >→</Link>
-                )}
-              </td>
-              <td className="py-2 pr-3 text-gray-500 whitespace-nowrap">{uc.before}</td>
-              <td className="py-2 pr-3 text-green-700 whitespace-nowrap">{uc.after}</td>
-              <td className="py-2 pr-3 font-semibold text-green-700 whitespace-nowrap">{uc.savings}</td>
-              <td className="py-2 whitespace-nowrap"><StatusBadge status={uc.status} /></td>
-            </motion.tr>
-          ))}
+          {towerUCs.map((uc, i) => {
+            const s = STATUS_STYLES[uc.status] || STATUS_STYLES.planned
+            return (
+              <motion.tr
+                key={uc.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="border-b border-gray-50 hover:bg-gray-50"
+              >
+                <td className="py-2 px-3 text-gray-400 font-mono">{uc.id}</td>
+                <td className="py-2 px-3 font-semibold text-humana-navy">
+                  {uc.name}
+                  {uc.liveDemo && (
+                    <span className="ml-1.5 bg-green-500 text-white text-xs px-1 rounded animate-pulse">LIVE</span>
+                  )}
+                </td>
+                <td className="py-2 px-3 text-gray-600 hidden md:table-cell">{uc.before}</td>
+                <td className="py-2 px-3 text-green-700 font-medium hidden md:table-cell">{uc.after}</td>
+                <td className="py-2 px-3 font-bold text-green-700">{uc.savings}</td>
+                <td className="py-2 px-3">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg}`}>
+                    <span className={s.dotColor}>{s.dot}</span>
+                    {uc.status === 'live' ? 'Live' : uc.status === 'in-progress' ? 'In Progress' : 'Planned'}
+                  </span>
+                </td>
+                <td className="py-2 px-3">
+                  {uc.liveDemo ? (
+                    <a
+                      href={uc.demoRoute}
+                      onClick={e => { e.preventDefault(); window.location.href = uc.demoRoute }}
+                      className="bg-green-600 text-white text-xs px-2 py-1 rounded hover:bg-green-700 transition-colors whitespace-nowrap"
+                    >
+                      Open Demo →
+                    </a>
+                  ) : (
+                    <span className="text-gray-300 text-xs">—</span>
+                  )}
+                </td>
+              </motion.tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
   )
 }
 
-export default function TowerSummaryRow({ tower, isVisible, delay, useCases }) {
+export default function TowerSummaryRow({ tower, index }) {
   const [expanded, setExpanded] = useState(false)
+  const towerUCs = USE_CASES_TABLE.filter(uc => uc.tower === tower.id)
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          key={tower.id}
-          initial={{ opacity: 0, x: -24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.3, delay: delay / 1000 }}
-          className="bg-white rounded-xl shadow-sm overflow-hidden border-l-4"
-          style={{ borderLeftColor: tower.color }}
-        >
-          {/* Main row */}
-          <div className="flex items-start p-5 gap-5">
+    <motion.div
+      initial={{ opacity: 0, x: -30 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
+      className="bg-white rounded-xl shadow-sm overflow-hidden"
+      style={{ borderLeft: `4px solid ${tower.color}` }}
+    >
+      {/* Row header */}
+      <div className="px-5 py-4 grid grid-cols-[1fr_1.4fr_auto] gap-6 items-center">
 
-            {/* Left — 30% */}
-            <div className="w-[30%] min-w-0 shrink-0">
-              <h3 className="font-bold text-humana-navy text-sm leading-snug">{tower.name}</h3>
-              <p className="text-xs text-gray-400 mt-1">{tower.totalUCs} use cases</p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
-                  {tower.live} Live
-                </span>
-                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">{tower.inProgress} In Progress</span>
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{tower.planned} Planned</span>
-              </div>
-            </div>
-
-            {/* Center — 40% */}
-            <div className="flex-1 min-w-0">
-              {tower.beforeHrs ? (
-                <>
-                  <MiniBarChart
-                    before={tower.beforeHrs}
-                    after={tower.afterHrs}
-                    savedHrs={tower.savedHrs}
-                    savedPct={tower.savedPct}
-                  />
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {tower.tools.slice(0, 5).map(t => <ToolChip key={t} name={t} />)}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-semibold text-gray-700">{tower.savingsLabel}</p>
-                  {tower.metricsLabel && (
-                    <p className="text-xs text-gray-500 mt-0.5">{tower.metricsLabel}</p>
-                  )}
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {tower.tools.slice(0, 5).map(t => <ToolChip key={t} name={t} />)}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Right — 30% */}
-            <div className="w-[30%] shrink-0 flex items-center justify-end gap-4">
-              <DonutChart
-                live={tower.live}
-                inProgress={tower.inProgress}
-                planned={tower.planned}
-                color={tower.color}
-              />
-              <button
-                onClick={() => setExpanded(e => !e)}
-                className="flex items-center gap-1 text-xs font-semibold transition-colors whitespace-nowrap hover:opacity-80"
-                style={{ color: tower.color }}
-              >
-                View Use Cases {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            </div>
+        {/* Left: tower info */}
+        <div className="flex flex-col gap-2">
+          <h3 className="font-bold text-humana-navy text-sm leading-tight">{tower.name}</h3>
+          <p className="text-xs text-gray-500">{tower.ucCount} use cases</p>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <StatusBadge count={tower.live}       label="Live"        color="bg-green-100 text-green-700" />
+            <StatusBadge count={tower.inProgress} label="In Progress" color="bg-amber-100 text-amber-700" />
+            <StatusBadge count={tower.planned}    label="Planned"     color="bg-gray-100 text-gray-600"  />
           </div>
-
-          {/* Expandable UC table */}
-          <AnimatePresence initial={false}>
-            {expanded && (
-              <motion.div
-                key="expand"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="overflow-hidden"
-              >
-                <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
-                  <MiniUCTable useCases={useCases} color={tower.color} />
-                </div>
-              </motion.div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {tower.tools.slice(0, 4).map(tool => (
+              <span key={tool} className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{tool}</span>
+            ))}
+            {tower.tools.length > 4 && (
+              <span className="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">+{tower.tools.length - 4}</span>
             )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Center: bar chart */}
+        <div>
+          <MiniBarChart
+            before={tower.beforeHrs}
+            after={tower.afterHrs}
+            saved={tower.savedHrs}
+            pct={tower.savedPct}
+            color={tower.color}
+            keyMetrics={tower.keyMetrics}
+          />
+        </div>
+
+        {/* Right: donut + expand button */}
+        <div className="flex flex-col items-center gap-3">
+          <DonutChart
+            live={tower.live}
+            inProgress={tower.inProgress}
+            planned={tower.planned}
+            color={tower.color}
+          />
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors"
+            style={{ borderColor: tower.color, color: tower.color }}
+          >
+            {expanded ? 'Hide Use Cases' : 'View Use Cases'}
+            {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Expandable UC table */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
+              <InlineUCTable towerUCs={towerUCs} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }

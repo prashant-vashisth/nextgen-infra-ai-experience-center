@@ -246,15 +246,27 @@ router.get('/deploy-stream', async (req, res) => {
   const send = d  => res.write(`data: ${JSON.stringify(d)}\n\n`);
   const log  = (icon, msg) => send({ log: { icon, msg, ts: new Date().toLocaleTimeString() } });
 
-  const tok = await getAzureToken();
-  const c   = azCfg();
+  // Send an immediate message so the browser EventSource knows the stream is alive,
+  // and the Container Apps / nginx proxy won't close the idle connection.
+  log('🔧', 'Initializing Terraform workspace — humana-platform/humana-iac-modules');
+
+  // Keepalive: send a comment every 15 s so proxies don't drop the connection.
+  const keepalive = setInterval(() => res.write(': keepalive\n\n'), 15000);
+  const cleanup = () => clearInterval(keepalive);
+
+  // Fetch the Azure token in parallel with the intro delay — token fetch can
+  // take up to 5 s on a disabled/exhausted subscription, so we don't block.
+  const [tok] = await Promise.all([
+    getAzureToken(),
+    sleep(900),
+  ]);
+  const c    = azCfg();
   const live = !!(tok && c.sub && c.rg);
   const http = live ? armClient(tok) : null;
   const SQLAPI = '2021-11-01';
   const STAPI  = '2021-09-01';
 
   // ── Shared preamble (Terraform narrative) ──────────────────────────────────
-  await sleep(800);  log('🔧', 'Initializing Terraform workspace — humana-platform/humana-iac-modules');
   await sleep(1100); log('✅', 'terraform init complete (azurerm v3.89.0, azuread v2.47.0)');
   await sleep(900);  log('🔍', `Running terraform plan in Azure East US${live ? ' (LIVE)' : ' (demo mode)'}...`);
 
@@ -391,6 +403,7 @@ router.get('/deploy-stream', async (req, res) => {
     await sleep(200); log('🎉', `DONE — ${c.storage} lifecycle policy deployed${live ? ' (LIVE IN AZURE)' : ''}`);
   }
 
+  cleanup();
   send({ done: true, live });
   res.end();
 });

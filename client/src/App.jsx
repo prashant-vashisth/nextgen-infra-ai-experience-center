@@ -14,6 +14,7 @@ import CVITWorkflowAgent from './pages/CVITWorkflowAgent'
 import AKSHelmPropagationAgent from './pages/AKSHelmPropagationAgent'
 import CAPERightsizingAgent from './pages/CAPERightsizingAgent'
 import Dashboard2 from './pages/Dashboard2'
+import AICommandCenter from './pages/AICommandCenter'
 
 function AppContent() {
   return (
@@ -36,6 +37,7 @@ function AppContent() {
           <Route path="/demo/aks-helm-propagation"       element={<AKSHelmPropagationAgent />} />
           <Route path="/demo/cape-rightsizing-agent"     element={<CAPERightsizingAgent />} />
           <Route path="/dashboard2"                      element={<Dashboard2 />} />
+          <Route path="/command-center"                  element={<AICommandCenter />} />
         </Routes>
       </main>
     </div>

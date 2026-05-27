@@ -24,7 +24,7 @@ const NAV_LINKS = [
   { path: '/demo/apg-agent',               label: 'APG Agent'            },
   { path: '/demo/aks-helm-propagation',    label: 'Cluster Updates'      },
   { path: '/demo/cape-rightsizing-agent',  label: 'CAPE Rightsizing'     },
-  { path: '/dashboard2',                   label: 'AI Value Realization' },
+  { path: '/command-center',              label: 'AI Command Center'    },
 ]
 
 const PAGE_LABELS = {
@@ -37,6 +37,8 @@ const PAGE_LABELS = {
   '/demo/aks-vulnerability-agent': 'AKS Vulnerability Agent',
   '/demo/aks-helm-propagation':    'Multi-Cluster Update Agent',
   '/demo/cape-rightsizing-agent':  'CAPE Rightsizing Agent',
+  '/dashboard2':                   'AI Value Realization',
+  '/command-center':               'AI Command Center',
 }
 
 export default function HumanaHeader() {
