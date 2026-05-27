@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   GitBranch, Server, Shield, Activity, ChevronRight, ChevronDown,
-  Zap, ExternalLink, Building2, Cpu,
+  Zap, ExternalLink, Building2, Cpu, Globe,
 } from 'lucide-react'
 import UseCaseDrawer from '../components/UseCaseDrawer'
 import SlideViewer from '../components/SlideViewer'
@@ -16,42 +16,45 @@ import { PROGRAM_STATS, TOP_METRICS } from '../data/dashboard2Data'
 
 const TOWERS = [
   {
-    id: 'it-ops',
-    label: 'IT Operations & Infrastructure',
+    id: 'esc',
+    label: 'Enterprise Service Center',
     icon: Building2,
     color: 'from-humana-navy to-[#003d7a]',
-    // grouped structure
     groups: [
       {
         id: 'it-operations',
         label: 'IT Operations',
         children: [
-          { id: 'incident-response', label: 'Incident Response Management' },
+          { id: 'incident-response', label: 'Enterprise Incident Response Management' },
           { id: 'toc',               label: 'TOC' },
           { id: 'aoc',               label: 'AOC' },
         ],
       },
-      {
-        id: 'it-infra-ops',
-        label: 'IT Infra Ops',
-        children: [
-          { id: 'enterprise-itsm',  label: 'Enterprise ITSM' },
-          { id: 'finops',           label: 'FinOps' },
-          { id: 'iss',              label: 'ISS' },
-          { id: 'cape',             label: 'CAPE' },
-        ],
-      },
-      {
-        id: 'observability-eai',
-        label: 'Observability & EAI',
-        children: [
-          { id: 'dynatrace', label: 'Dynatrace' },
-          { id: 'splunk',    label: 'Splunk' },
-          { id: 'datapowr',  label: 'DataPower' },
-          { id: 'apigee',    label: 'APIGEE' },
-          { id: 'graphql',   label: 'GraphQL' },
-        ],
-      },
+    ],
+  },
+  {
+    id: 'infra-ops',
+    label: 'Infra Ops',
+    icon: Server,
+    color: 'from-[#0a3d6b] to-[#052a4e]',
+    subcategories: [
+      { id: 'enterprise-itsm', label: 'Enterprise ITSM' },
+      { id: 'finops',          label: 'FinOps' },
+      { id: 'iss',             label: 'ISS' },
+      { id: 'cape',            label: 'CAPE' },
+    ],
+  },
+  {
+    id: 'obs-eai',
+    label: 'Observability & EAI',
+    icon: Activity,
+    color: 'from-[#0a5c6b] to-[#063d4a]',
+    subcategories: [
+      { id: 'dynatrace', label: 'Dynatrace' },
+      { id: 'splunk',    label: 'Splunk' },
+      { id: 'datapowr',  label: 'DataPower' },
+      { id: 'apigee',    label: 'APIGEE' },
+      { id: 'graphql',   label: 'GraphQL' },
     ],
   },
   {
@@ -59,13 +62,28 @@ const TOWERS = [
     label: 'Platform Engineering',
     icon: Cpu,
     color: 'from-[#0f4c35] to-[#006633]',
-    // flat structure
     subcategories: [
-      { id: 'compute-storage',        label: 'Compute & Storage Engineering' },
-      { id: 'network-engineering',    label: 'Network Engineering' },
-      { id: 'security-engineering',   label: 'Security Engineering' },
-      { id: 'cloud-engineering',      label: 'Cloud Engineering' },
-      { id: 'data-engineering',       label: 'Data Engineering' },
+      { id: 'compute-storage',      label: 'Compute & Storage Engineering' },
+      { id: 'security-engineering', label: 'Security Engineering' },
+      { id: 'cloud-engineering',    label: 'Cloud Engineering' },
+      { id: 'data-engineering',     label: 'Data Engineering' },
+    ],
+  },
+  {
+    id: 'network-eng',
+    label: 'Network Engineering',
+    icon: Globe,
+    color: 'from-[#7a4500] to-[#4a2600]',
+    subcategories: [
+      { id: 'network-engineering', label: 'Network Engineering' },
+    ],
+  },
+  {
+    id: 'automation-eng',
+    label: 'Automation Engineering',
+    icon: Zap,
+    color: 'from-[#4a1a7a] to-[#2d0d5c]',
+    subcategories: [
       { id: 'automation-engineering', label: 'Automation Engineering' },
     ],
   },
@@ -73,9 +91,7 @@ const TOWERS = [
 
 // Flat list of every leaf sub-category for count lookups
 const ALL_LEAVES = TOWERS.flatMap(t =>
-  t.groups
-    ? t.groups.flatMap(g => g.children)
-    : t.subcategories
+  t.groups ? t.groups.flatMap(g => g.children) : t.subcategories
 )
 
 // ─── Use Cases ────────────────────────────────────────────────────────────────
@@ -609,7 +625,7 @@ export default function Home() {
     }
   }
 
-  const [itOpsTower, platformTower] = TOWERS
+  const [escTower, infraOpsTower, obsEaiTower, platformTower, networkTower, autoTower] = TOWERS
 
   return (
     <div className="min-h-screen bg-humana-light">
@@ -694,9 +710,13 @@ export default function Home() {
             </button>
           </div>
         )}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-          <ITOpsTowerPanel    tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={platformTower} activeLeaf={activeLeaf} onSelect={handleSelect} />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start">
+          <ITOpsTowerPanel    tower={escTower}       activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <PlatformTowerPanel tower={infraOpsTower}  activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <PlatformTowerPanel tower={obsEaiTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <PlatformTowerPanel tower={platformTower}  activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <PlatformTowerPanel tower={networkTower}   activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <PlatformTowerPanel tower={autoTower}      activeLeaf={activeLeaf} onSelect={handleSelect} />
         </div>
       </section>
 

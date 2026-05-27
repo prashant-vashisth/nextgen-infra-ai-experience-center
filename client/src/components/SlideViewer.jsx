@@ -16,16 +16,17 @@ const SLIDE_MAP = {
     '/slides/CyberSecurity2.png',
     '/slides/CyberSecurity3.png',
   ],
-  'iss': [
-    '/slides/CyberSecurity1.png',
-    '/slides/CyberSecurity2.png',
-    '/slides/CyberSecurity3.png',
-  ],
   'enterprise-itsm': [
     '/slides/Enterprise Service Center1.png',
     '/slides/Enterprise Service Center2.png',
     '/slides/Enterprise Service Center3.png',
     '/slides/Enterprise Service Center4.png',
+  ],
+  'iss': [
+    '/slides/Infra Ops1.png',
+    '/slides/Infra Ops2.png',
+    '/slides/Infra Ops3.png',
+    '/slides/Infra Ops4.png',
   ],
   'incident-response': [
     '/slides/Enterprise Service Center1.png',
@@ -68,15 +69,23 @@ const SLIDE_MAP = {
 const TOWER_LABELS = {
   default:                  'All Towers — Overview',
   'automation-engineering': 'Automation Engineering',
+  'network-engineering':    'Network Engineering',
   'security-engineering':   'Security Engineering',
-  'iss':                    'Security Engineering',
   'enterprise-itsm':        'Enterprise Service Center',
   'incident-response':      'Enterprise Service Center',
   'toc':                    'Enterprise Service Center',
   'aoc':                    'Enterprise Service Center',
+  'iss':                    'Infra Ops',
   'cape':                   'Infra Ops',
   'finops':                 'Infra Ops',
   'compute-storage':        'Infra Ops',
+  'dynatrace':              'Observability & EAI',
+  'splunk':                 'Observability & EAI',
+  'datapowr':               'Observability & EAI',
+  'apigee':                 'Observability & EAI',
+  'graphql':                'Observability & EAI',
+  'cloud-engineering':      'Platform Engineering',
+  'data-engineering':       'Platform Engineering',
 }
 
 function getSlidesForLeaf(leafId) {
