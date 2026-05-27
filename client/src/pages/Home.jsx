@@ -6,6 +6,7 @@ import {
   Zap, ExternalLink, Building2, Cpu,
 } from 'lucide-react'
 import UseCaseDrawer from '../components/UseCaseDrawer'
+import SlideViewer from '../components/SlideViewer'
 import { PROGRAM_STATS, TOP_METRICS } from '../data/dashboard2Data'
 
 // ─── Tower taxonomy ───────────────────────────────────────────────────────────
@@ -693,6 +694,9 @@ export default function Home() {
             </button>
           </div>
         )}
+        {/* ── Slide viewer — updates to matching tower deck on leaf selection ── */}
+        <SlideViewer activeLeaf={activeLeaf} />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           <ITOpsTowerPanel    tower={itOpsTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
           <PlatformTowerPanel tower={platformTower} activeLeaf={activeLeaf} onSelect={handleSelect} />
