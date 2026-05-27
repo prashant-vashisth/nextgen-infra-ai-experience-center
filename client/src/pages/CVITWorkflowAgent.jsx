@@ -960,16 +960,17 @@ export default function CVITWorkflowAgent() {
                       const summary   = cve.agentSummary || ''
                       return (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                          className="mx-3 mb-3 bg-amber-50 border border-amber-300 rounded-xl overflow-hidden">
+                          className="mx-3 mb-3 bg-amber-50 border border-amber-300 rounded-xl overflow-hidden flex flex-col">
                           {/* Header */}
-                          <div className="px-4 py-2.5 bg-amber-100 border-b border-amber-200 flex items-center gap-2">
+                          <div className="px-4 py-2.5 bg-amber-100 border-b border-amber-200 flex items-center gap-2 shrink-0">
                             <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                             <span className="text-amber-800 font-bold text-sm">Approval Required</span>
                             <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${riskColor}`}>{riskLabel} {cvss}</span>
                           </div>
 
-                          <div className="p-3 space-y-3">
-                            {/* Change ticket link */}
+                          {/* Action section — always visible */}
+                          <div className="p-3 space-y-2 border-b border-amber-200 shrink-0">
+                            {/* Change ticket reference */}
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-500">Change Request</span>
                               {chgUrl ? (
@@ -981,7 +982,22 @@ export default function CVITWorkflowAgent() {
                                 <span className="font-mono text-amber-700">{humanPending.changeTicket?.number}</span>
                               )}
                             </div>
+                            {/* Approver input */}
+                            <input value={approverName} onChange={e => setApproverName(e.target.value)} placeholder="Your name (approver)"
+                              className="w-full bg-white border border-gray-300 text-gray-800 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-humana-green" />
+                            {/* Action buttons */}
+                            <div className="flex gap-2">
+                              <button onClick={handleApprove} className="flex-1 flex items-center justify-center gap-1.5 bg-humana-green hover:bg-green-700 text-white text-xs font-bold py-2.5 rounded-lg">
+                                <ThumbsUp size={12} />Approve
+                              </button>
+                              <button onClick={handleReject} className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 rounded-lg">
+                                <ThumbsDown size={12} />Reject
+                              </button>
+                            </div>
+                          </div>
 
+                          {/* Scrollable details */}
+                          <div className="p-3 space-y-3 overflow-y-auto">
                             {/* CVE details card */}
                             <div className="bg-white rounded-lg border border-amber-200 p-2.5 space-y-1.5">
                               <div className="flex items-center justify-between">
@@ -1051,20 +1067,6 @@ export default function CVITWorkflowAgent() {
                             <div className="flex items-start gap-1.5 text-[11px] text-gray-500">
                               <RotateCcw size={10} className="shrink-0 mt-0.5" />
                               <span>Zero-downtime rolling update. Auto-rollback on readiness probe failure.</span>
-                            </div>
-
-                            {/* Approver input */}
-                            <input value={approverName} onChange={e => setApproverName(e.target.value)} placeholder="Your name (approver)"
-                              className="w-full bg-white border border-gray-300 text-gray-800 text-xs px-2 py-1.5 rounded focus:outline-none focus:border-humana-green" />
-
-                            {/* Action buttons */}
-                            <div className="flex gap-2">
-                              <button onClick={handleApprove} className="flex-1 flex items-center justify-center gap-1.5 bg-humana-green hover:bg-green-700 text-white text-xs font-bold py-2 rounded-lg">
-                                <ThumbsUp size={12} />Approve
-                              </button>
-                              <button onClick={handleReject} className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 rounded-lg">
-                                <ThumbsDown size={12} />Reject
-                              </button>
                             </div>
                           </div>
                         </motion.div>
