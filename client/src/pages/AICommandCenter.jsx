@@ -46,13 +46,14 @@ const jitter = (v, pct=0.015) => v + v * (Math.random() - 0.5) * pct * 2
 
 // ── SVG builders ──────────────────────────────────────────────────────────────
 function donutSVG(pct, color, label) {
-  const v = clamp(pct, 0, 100), d1 = v * 4.52
+  const v = clamp(pct || 0, 0, 100), d1 = v * 4.52
+  const txt = (label != null && !String(label).includes('undefined')) ? label : `${Math.round(v)}%`
   return `<svg viewBox="0 0 140 140" style="width:100%;max-width:130px;height:auto">
     <circle cx="70" cy="70" r="52" fill="none" stroke="#e2e8f0" stroke-width="14"/>
     <circle cx="70" cy="70" r="52" fill="none" stroke="${color}" stroke-width="14"
       stroke-linecap="round" stroke-dasharray="${d1} 327" transform="rotate(-90 70 70)"
       style="transition:stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)"/>
-    <text x="70" y="75" text-anchor="middle" font-size="22" font-weight="800" fill="#002855" font-family="Inter,sans-serif">${label}</text>
+    <text x="70" y="75" text-anchor="middle" font-size="22" font-weight="800" fill="#002855" font-family="Inter,sans-serif">${txt}</text>
   </svg>`
 }
 
@@ -158,7 +159,7 @@ function FeedItem({ event, age }) {
       <div className="flex-1 min-w-0">
         <p className="text-[11px] text-gray-700 leading-snug line-clamp-2">{event.text}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-gray-400">{event.agent}</span>
+          <span className="text-[10px] text-gray-500">{event.agent}</span>
           {event.sev !== '—' && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
               style={{ background: event.sev==='P1'?'#fef2f2':event.sev==='P2'?'#fff7ed':'#f0fdf4',
@@ -175,13 +176,14 @@ function FeedItem({ event, age }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICommandCenter() {
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [now, setNow] = useState(new Date())
   const [metrics, setMetrics] = useState({
     sla: 98.2, autonomy: 64, deflection: 41, aiSuccess: 82,
     ticketsResolved: 243, ticketsOpen: 6189, activeAgents: 7,
     avgMTTR: 8.4, avgMTTD: 0.85, costPerTicket: 52.4,
     changeSuccess: 94, rollbackRate: 3, agentCoverage: 78,
-    toilAvoided: 312.5, aiWorkShare: 58, cycleP90: 6.2,
+    toilAvoided: 312.5, aiWorkShare: 32, cycleP90: 6.2,
     reopenRate: 4.2, repeatRate: 3.1,
   })
   const [feed, setFeed] = useState(() =>
@@ -241,7 +243,7 @@ export default function AICommandCenter() {
         ...m,
         autonomy:    Math.round(clamp(jitter(m.autonomy, 0.012), 58, 72)),
         deflection:  Math.round(clamp(jitter(m.deflection, 0.015), 37, 46)),
-        aiWorkShare: Math.round(clamp(jitter(m.aiWorkShare, 0.01), 52, 65)),
+        aiWorkShare: Math.round(clamp(jitter(m.aiWorkShare, 0.01), 28, 38)),
         toilAvoided: round(clamp(jitter(m.toilAvoided, 0.008), 295, 340), 1),
       }))
       setSparkHistory(h => ({
@@ -319,7 +321,7 @@ export default function AICommandCenter() {
   const timeStr = now.toLocaleTimeString('en-US', { hour12: false })
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white" style={{ fontFamily:'Inter, system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-humana-light" style={{ fontFamily:'Inter, system-ui, sans-serif' }}>
 
       {/* ── Header ── */}
       <div className="bg-humana-navy border-b border-white/10 px-5 py-3">
@@ -338,7 +340,23 @@ export default function AICommandCenter() {
               <p className="text-white/40 text-[11px]">Humana AI Operations · Real-time intelligence feed</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
+            {/* ── Nav tabs ── */}
+            <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1">
+              {[
+                { id: 'dashboard', label: 'Command Center' },
+                { id: 'sca',       label: 'SCA Agent' },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all duration-200"
+                  style={{
+                    background: activeTab === tab.id ? '#0099A8' : 'transparent',
+                    color:      activeTab === tab.id ? '#fff'    : 'rgba(255,255,255,0.5)',
+                  }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             <div className="text-right">
               <div className="text-white font-mono font-bold text-lg">{timeStr}</div>
               <div className="text-white/40 text-[10px]">{now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
@@ -363,7 +381,17 @@ export default function AICommandCenter() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      {/* ── SCA Agent iframe ── */}
+      {activeTab === 'sca' && (
+        <iframe
+          src="https://humana-sca-demo-791329052527.us-central1.run.app"
+          title="SCA Agent"
+          style={{ width: '100%', height: 'calc(100vh - 100px)', border: 'none', display: 'block' }}
+          allow="clipboard-write"
+        />
+      )}
+
+      {activeTab === 'dashboard' && <div className="p-4 space-y-4">
 
         {/* ── Top stats row ── */}
         <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
@@ -377,10 +405,10 @@ export default function AICommandCenter() {
             { label:'AI Work Share',    value:m.aiWorkShare,    color:C.blue,   icon:<Activity size={14}/>, suffix:'%' },
             { label:'Rollback Rate',    value:m.rollbackRate,   color:C.red,    icon:<TrendingDown size={14}/>, suffix:'%', dec:1 },
           ].map(s => (
-            <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex flex-col gap-1.5">
+            <div key={s.label} className="bg-white border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5" style={{ color: s.color }}>
                 {s.icon}
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-tight">{s.label}</span>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide leading-tight">{s.label}</span>
               </div>
               <LiveNum value={s.value} suffix={s.suffix} decimals={s.dec||0} color={s.color} size="text-2xl" />
             </div>
@@ -395,9 +423,9 @@ export default function AICommandCenter() {
             { label:'AI Deflection Rate',    value:m.deflection, color:C.teal,   suffix:'%', dec:0, spark:sparkHistory.deflection },
             { label:'AI Success Rate',       value:m.aiSuccess,  color:C.green,  suffix:'%', dec:0, spark:sparkHistory.aiSuccess },
           ].map(k => (
-            <div key={k.label} className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <div key={k.label} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">{k.label}</span>
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{k.label}</span>
                 <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: k.color }} />
               </div>
               <div className="flex items-end gap-3 mb-2">
@@ -415,15 +443,15 @@ export default function AICommandCenter() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Trend line */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-sm font-bold text-white">Agent Scorecards</div>
-                <div className="text-[11px] text-gray-500">Autonomy · Coverage · AI Success · Deflection</div>
+                <div className="text-sm font-bold text-humana-navy">Agent Scorecards</div>
+                <div className="text-[11px] text-gray-400">Autonomy · Coverage · AI Success · Deflection</div>
               </div>
               <div className="flex gap-2">
                 {[[C.blue,'Aut'],[C.purple,'Cov'],[C.green,'Suc'],[C.teal,'Defl']].map(([c,l])=>(
-                  <span key={l} className="flex items-center gap-1 text-[10px] text-gray-400">
+                  <span key={l} className="flex items-center gap-1 text-[10px] text-gray-500">
                     <span className="w-2 h-2 rounded-sm" style={{background:c}}/>  {l}
                   </span>
                 ))}
@@ -436,11 +464,11 @@ export default function AICommandCenter() {
           </div>
 
           {/* Live event feed */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col">
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <div>
-                <div className="text-sm font-bold text-white">AI Activity Feed</div>
-                <div className="text-[11px] text-gray-500">Real-time agent actions &amp; resolutions</div>
+                <div className="text-sm font-bold text-humana-navy">AI Activity Feed</div>
+                <div className="text-[11px] text-gray-400">Real-time agent actions &amp; resolutions</div>
               </div>
               <div className="ml-auto flex items-center gap-1.5 text-humana-green text-[10px] font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-humana-green animate-pulse" />Live
@@ -452,10 +480,10 @@ export default function AICommandCenter() {
           </div>
 
           {/* Demand bars */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
             <div className="mb-3">
-              <div className="text-sm font-bold text-white">Demand by Type</div>
-              <div className="text-[11px] text-gray-500">Incident · Request · Problem · Change · Access</div>
+              <div className="text-sm font-bold text-humana-navy">Demand by Type</div>
+              <div className="text-[11px] text-gray-400">Incident · Request · Problem · Change · Access</div>
             </div>
             <div dangerouslySetInnerHTML={{ __html: miniBarSVG(
               Object.values(barData.typeCounts), Object.keys(barData.typeCounts),
@@ -465,7 +493,7 @@ export default function AICommandCenter() {
               {Object.entries(barData.typeCounts).map(([k,v],i) => (
                 <div key={k} className="text-center">
                   <div className="text-xs font-black" style={{ color:[C.blue,C.teal,C.purple,C.green,C.yellow][i] }}>{v}</div>
-                  <div className="text-[9px] text-gray-500">{k}</div>
+                  <div className="text-[9px] text-gray-400">{k}</div>
                 </div>
               ))}
             </div>
@@ -476,24 +504,24 @@ export default function AICommandCenter() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
           {/* Resolution speed */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-            <div className="text-sm font-bold text-white mb-1">Resolution Speed</div>
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
+            <div className="text-sm font-bold text-humana-navy mb-1">Resolution Speed</div>
             <div className="text-[11px] text-gray-500 mb-3">P90 cycle time · AI work share</div>
             <div className="flex gap-3">
               <div className="flex-1 flex flex-col items-center">
                 <div dangerouslySetInnerHTML={{ __html: donutSVG(Math.min(100, m.cycleP90*10), C.blue, `${m.cycleP90}h`) }} className="w-full" />
-                <div className="text-[10px] text-gray-500 mt-1">P90 Cycle</div>
+                <div className="text-[10px] text-gray-500 mt-1 text-center">P90 Cycle</div>
               </div>
               <div className="flex-1 flex flex-col items-center">
-                <div dangerouslySetInnerHTML={{ __html: donutSVG(m.aiWorkShare, C.purple) }} className="w-full" />
-                <div className="text-[10px] text-gray-500 mt-1">AI Work Share</div>
+                <div dangerouslySetInnerHTML={{ __html: donutSVG(m.aiWorkShare, C.purple, `${m.aiWorkShare}%`) }} className="w-full" />
+                <div className="text-[10px] text-gray-500 mt-1 text-center">AI Work Share</div>
               </div>
             </div>
           </div>
 
           {/* Incident metrics */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-            <div className="text-sm font-bold text-white mb-1">Incident &amp; Reliability</div>
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
+            <div className="text-sm font-bold text-humana-navy mb-1">Incident &amp; Reliability</div>
             <div className="text-[11px] text-gray-500 mb-3">MTTD · MTTR · repeat · reopen</div>
             <div className="space-y-2.5">
               {[
@@ -504,10 +532,10 @@ export default function AICommandCenter() {
               ].map(([l,v,p,c]) => (
                 <div key={l} className="space-y-1">
                   <div className="flex justify-between text-[11px] font-semibold">
-                    <span className="text-gray-400">{l}</span>
+                    <span className="text-gray-600">{l}</span>
                     <span style={{ color:c }}>{v}</span>
                   </div>
-                  <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-1000" style={{ width:`${p}%`, background:c }} />
                   </div>
                 </div>
@@ -516,8 +544,8 @@ export default function AICommandCenter() {
           </div>
 
           {/* Cost */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-            <div className="text-sm font-bold text-white mb-1">Cost &amp; Productivity</div>
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
+            <div className="text-sm font-bold text-humana-navy mb-1">Cost &amp; Productivity</div>
             <div className="text-[11px] text-gray-500 mb-3">Operational efficiency metrics</div>
             <div className="space-y-3">
               {[
@@ -528,7 +556,7 @@ export default function AICommandCenter() {
               ].map(([l,v,c,s]) => (
                 <div key={l} className="flex items-center gap-2">
                   <div className="flex-1">
-                    <div className="text-[10px] text-gray-400">{l}</div>
+                    <div className="text-[10px] text-gray-500">{l}</div>
                     <div className="text-sm font-black" style={{ color:c }}>{v}</div>
                   </div>
                   <div className="w-20" dangerouslySetInnerHTML={{ __html: sparkSVG(s, c) }} />
@@ -538,8 +566,8 @@ export default function AICommandCenter() {
           </div>
 
           {/* Safety */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
-            <div className="text-sm font-bold text-white mb-1">Safety &amp; Guardrails</div>
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
+            <div className="text-sm font-bold text-humana-navy mb-1">Safety &amp; Guardrails</div>
             <div className="text-[11px] text-gray-500 mb-3">Rollback · change success · regression</div>
             <div className="space-y-3">
               {[
@@ -550,7 +578,7 @@ export default function AICommandCenter() {
               ].map(([l,v,c,s,lower]) => (
                 <div key={l} className="flex items-center gap-2">
                   <div className="flex-1">
-                    <div className="text-[10px] text-gray-400">{l}</div>
+                    <div className="text-[10px] text-gray-500">{l}</div>
                     <div className="text-sm font-black" style={{ color:c }}>{v}</div>
                   </div>
                   <div className="w-20" dangerouslySetInnerHTML={{ __html: sparkSVG(s, c) }} />
@@ -560,7 +588,7 @@ export default function AICommandCenter() {
           </div>
 
         </div>
-      </div>
+      </div>}
 
       {/* ── Marquee CSS ── */}
       <style>{`
