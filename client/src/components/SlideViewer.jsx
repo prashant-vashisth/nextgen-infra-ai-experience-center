@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react'
 
 const SLIDE_MAP = {
   default: [
@@ -125,9 +125,10 @@ export default function SlideViewer({ activeLeaf }) {
   const slides = getSlidesForLeaf(activeLeaf)
   const label  = TOWER_LABELS[activeLeaf || 'default'] || 'All Towers — Overview'
 
-  const [idx,      setIdx]      = useState(0)
-  const [fade,     setFade]     = useState(true)
-  const [expanded, setExpanded] = useState(false)
+  const [idx,       setIdx]       = useState(0)
+  const [fade,      setFade]      = useState(true)
+  const [expanded,  setExpanded]  = useState(false)
+  const [minimized, setMinimized] = useState(false)
 
   // Reset to slide 1 when deck changes
   useEffect(() => {
@@ -159,35 +160,47 @@ export default function SlideViewer({ activeLeaf }) {
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-5">
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50">
           <span className="text-xs font-bold text-humana-navy uppercase tracking-wide">{label}</span>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400 font-mono">{idx + 1} / {slides.length}</span>
+          <div className="flex items-center gap-2">
+            {!minimized && <span className="text-xs text-gray-400 font-mono">{idx + 1} / {slides.length}</span>}
             <button
-              onClick={() => setExpanded(true)}
-              title="Maximize"
+              onClick={() => setMinimized(m => !m)}
+              title={minimized ? 'Restore' : 'Minimize'}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-humana-navy font-semibold border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-100 transition-all"
             >
-              <Maximize2 size={13} /> Expand
+              <Minimize2 size={13} /> {minimized ? 'Restore' : 'Minimize'}
             </button>
+            {!minimized && (
+              <button
+                onClick={() => setExpanded(true)}
+                title="Expand"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-humana-navy font-semibold border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-100 transition-all"
+              >
+                <Maximize2 size={13} /> Expand
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="relative bg-gray-50">
-          <img
-            key={slides[idx]}
-            src={slides[idx]}
-            alt={`Slide ${idx + 1}`}
-            style={{
-              width: '100%',
-              display: 'block',
-              objectFit: 'contain',
-              maxHeight: 480,
-              opacity: fade ? 1 : 0,
-              transition: 'opacity 0.18s ease',
-            }}
-          />
-        </div>
-
-        <NavBar idx={idx} total={slides.length} onPrev={prev} onNext={next} onDot={dot} />
+        {!minimized && (
+          <>
+            <div className="relative bg-gray-50">
+              <img
+                key={slides[idx]}
+                src={slides[idx]}
+                alt={`Slide ${idx + 1}`}
+                style={{
+                  width: '100%',
+                  display: 'block',
+                  objectFit: 'contain',
+                  maxHeight: 480,
+                  opacity: fade ? 1 : 0,
+                  transition: 'opacity 0.18s ease',
+                }}
+              />
+            </div>
+            <NavBar idx={idx} total={slides.length} onPrev={prev} onNext={next} onDot={dot} />
+          </>
+        )}
       </div>
 
       {/* ── Fullscreen modal ── */}
