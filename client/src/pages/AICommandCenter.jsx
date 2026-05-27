@@ -177,6 +177,7 @@ function FeedItem({ event, age }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICommandCenter() {
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [scaReady, setScaReady] = useState(false)
   const [now, setNow] = useState(new Date())
   const [metrics, setMetrics] = useState({
     sla: 98.2, autonomy: 64, deflection: 41, aiSuccess: 82,
@@ -208,6 +209,13 @@ export default function AICommandCenter() {
   })
   const nextEventIdx = useRef(0)
   const feedTimestamps = useRef(feed.map((_,i) => Date.now() - i*47000))
+
+  // ── SCA: trigger a session the first time the tab opens
+  useEffect(() => {
+    if (activeTab !== 'sca' || scaReady) return
+    fetch('https://humana-sca-demo-791329052527.us-central1.run.app/trigger', { method: 'POST' })
+      .finally(() => setScaReady(true))
+  }, [activeTab, scaReady])
 
   // ── 1s: clock + age tickers
   useEffect(() => {
@@ -383,12 +391,21 @@ export default function AICommandCenter() {
 
       {/* ── SCA Agent iframe ── */}
       {activeTab === 'sca' && (
-        <iframe
-          src="https://humana-sca-demo-791329052527.us-central1.run.app"
-          title="SCA Agent"
-          style={{ width: '100%', height: 'calc(100vh - 100px)', border: 'none', display: 'block' }}
-          allow="clipboard-write"
-        />
+        scaReady ? (
+          <iframe
+            src="https://humana-sca-demo-791329052527.us-central1.run.app"
+            title="SCA Agent"
+            style={{ width: '100%', height: 'calc(100vh - 100px)', border: 'none', display: 'block' }}
+            allow="clipboard-write"
+          />
+        ) : (
+          <div style={{ height: 'calc(100vh - 100px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+            <div style={{ textAlign: 'center', color: '#002855' }}>
+              <div style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTop: '3px solid #0099A8', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Starting SCA Agent…</div>
+            </div>
+          </div>
+        )
       )}
 
       {activeTab === 'dashboard' && <div className="p-4 space-y-4">
@@ -594,6 +611,7 @@ export default function AICommandCenter() {
       <style>{`
         @keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin { to { transform: rotate(360deg) } }
         .animate-fadeSlideIn { animation: fadeSlideIn 0.4s ease-out }
       `}</style>
     </div>
