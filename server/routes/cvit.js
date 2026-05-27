@@ -400,6 +400,11 @@ router.get('/stream/:workflowId', (req, res) => {
     (state.agentLogs || []).forEach(entry =>
       res.write(`event: log\ndata: ${JSON.stringify(entry)}\n\n`)
     );
+    // Re-emit human_required if workflow is paused awaiting human approval
+    if (state.step === 'awaiting_approval' && state.changeTicket && !state.humanApproval) {
+      const payload = { action: 'approve', changeTicket: state.changeTicket, cve: state.enrichedCVE || {}, workflowId, ts: new Date().toISOString() };
+      res.write(`event: human_required\ndata: ${JSON.stringify(payload)}\n\n`);
+    }
   }
 
   // Heartbeat
