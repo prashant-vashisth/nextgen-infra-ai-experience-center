@@ -176,8 +176,6 @@ function FeedItem({ event, age }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICommandCenter() {
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [scaReady, setScaReady] = useState(false)
   const [now, setNow] = useState(new Date())
   const [metrics, setMetrics] = useState({
     sla: 98.2, autonomy: 64, deflection: 41, aiSuccess: 82,
@@ -209,13 +207,6 @@ export default function AICommandCenter() {
   })
   const nextEventIdx = useRef(0)
   const feedTimestamps = useRef(feed.map((_,i) => Date.now() - i*47000))
-
-  // ── SCA: trigger a session the first time the tab opens
-  useEffect(() => {
-    if (activeTab !== 'sca' || scaReady) return
-    fetch('https://humana-sca-demo-791329052527.us-central1.run.app/trigger', { method: 'POST' })
-      .finally(() => setScaReady(true))
-  }, [activeTab, scaReady])
 
   // ── 1s: clock + age tickers
   useEffect(() => {
@@ -348,23 +339,7 @@ export default function AICommandCenter() {
               <p className="text-white/40 text-[11px]">Humana AI Operations · Real-time intelligence feed</p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            {/* ── Nav tabs ── */}
-            <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1">
-              {[
-                { id: 'dashboard', label: 'Command Center' },
-                { id: 'sca',       label: 'SCA Agent' },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all duration-200"
-                  style={{
-                    background: activeTab === tab.id ? '#0099A8' : 'transparent',
-                    color:      activeTab === tab.id ? '#fff'    : 'rgba(255,255,255,0.5)',
-                  }}>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-white font-mono font-bold text-lg">{timeStr}</div>
               <div className="text-white/40 text-[10px]">{now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
@@ -389,26 +364,7 @@ export default function AICommandCenter() {
         </div>
       </div>
 
-      {/* ── SCA Agent iframe ── */}
-      {activeTab === 'sca' && (
-        scaReady ? (
-          <iframe
-            src="https://humana-sca-demo-791329052527.us-central1.run.app"
-            title="SCA Agent"
-            style={{ width: '100%', height: 'calc(100vh - 100px)', border: 'none', display: 'block' }}
-            allow="clipboard-write"
-          />
-        ) : (
-          <div style={{ height: 'calc(100vh - 100px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-            <div style={{ textAlign: 'center', color: '#002855' }}>
-              <div style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTop: '3px solid #0099A8', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Starting SCA Agent…</div>
-            </div>
-          </div>
-        )
-      )}
-
-      {activeTab === 'dashboard' && <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4">
 
         {/* ── Top stats row ── */}
         <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
@@ -605,13 +561,12 @@ export default function AICommandCenter() {
           </div>
 
         </div>
-      </div>}
+      </div>
 
       {/* ── Marquee CSS ── */}
       <style>{`
         @keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes spin { to { transform: rotate(360deg) } }
         .animate-fadeSlideIn { animation: fadeSlideIn 0.4s ease-out }
       `}</style>
     </div>
