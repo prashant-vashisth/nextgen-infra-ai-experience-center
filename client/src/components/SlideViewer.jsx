@@ -1,96 +1,46 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react'
 
-const SLIDE_MAP = {
-  default: [
-    '/slides/All Tower1.png',
-    '/slides/All Tower2.png',
-  ],
-  'automation-engineering': [
-    '/slides/Automation Engineering1.png',
-    '/slides/Automation Engineering2.png',
-    '/slides/Automation Engineering3.png',
-  ],
-  'security-engineering': [
-    '/slides/CyberSecurity1.png',
-    '/slides/CyberSecurity2.png',
-    '/slides/CyberSecurity3.png',
-  ],
-  'enterprise-itsm': [
-    '/slides/Enterprise Service Center1.png',
-    '/slides/Enterprise Service Center2.png',
-    '/slides/Enterprise Service Center3.png',
-    '/slides/Enterprise Service Center4.png',
-  ],
-  'iss': [
-    '/slides/Infra Ops1.png',
-    '/slides/Infra Ops2.png',
-    '/slides/Infra Ops3.png',
-    '/slides/Infra Ops4.png',
-  ],
-  'incident-response': [
-    '/slides/Enterprise Service Center1.png',
-    '/slides/Enterprise Service Center2.png',
-    '/slides/Enterprise Service Center3.png',
-    '/slides/Enterprise Service Center4.png',
-  ],
-  'toc': [
-    '/slides/Enterprise Service Center1.png',
-    '/slides/Enterprise Service Center2.png',
-    '/slides/Enterprise Service Center3.png',
-    '/slides/Enterprise Service Center4.png',
-  ],
-  'aoc': [
-    '/slides/Enterprise Service Center1.png',
-    '/slides/Enterprise Service Center2.png',
-    '/slides/Enterprise Service Center3.png',
-    '/slides/Enterprise Service Center4.png',
-  ],
-  'cape': [
-    '/slides/Infra Ops1.png',
-    '/slides/Infra Ops2.png',
-    '/slides/Infra Ops3.png',
-    '/slides/Infra Ops4.png',
-  ],
-  'finops': [
-    '/slides/Infra Ops1.png',
-    '/slides/Infra Ops2.png',
-    '/slides/Infra Ops3.png',
-    '/slides/Infra Ops4.png',
-  ],
-  'compute-storage': [
-    '/slides/Infra Ops1.png',
-    '/slides/Infra Ops2.png',
-    '/slides/Infra Ops3.png',
-    '/slides/Infra Ops4.png',
-  ],
+// ── Slide decks ───────────────────────────────────────────────────────────────
+const DECKS = {
+  allTowers:  ['/slides/All Tower1.png', '/slides/All Tower2.png'],
+  automation: ['/slides/Automation Engineering1.png', '/slides/Automation Engineering2.png', '/slides/Automation Engineering3.png'],
+  cyber:      ['/slides/CyberSecurity1.png', '/slides/CyberSecurity2.png', '/slides/CyberSecurity3.png'],
+  esc:        ['/slides/Enterprise Service Center1.png', '/slides/Enterprise Service Center2.png', '/slides/Enterprise Service Center3.png', '/slides/Enterprise Service Center4.png'],
+  infraOps:   ['/slides/Infra Ops1.png', '/slides/Infra Ops2.png', '/slides/Infra Ops3.png', '/slides/Infra Ops4.png'],
 }
 
-const TOWER_LABELS = {
-  default:                  'All Towers — Overview',
-  'automation-engineering': 'Automation Engineering',
-  'network-engineering':    'Network Engineering',
-  'security-engineering':   'Security Engineering',
-  'enterprise-itsm':        'Enterprise Service Center',
-  'incident-response':      'Enterprise Service Center',
-  'toc':                    'Enterprise Service Center',
-  'aoc':                    'Enterprise Service Center',
-  'iss':                    'Infra Ops',
-  'cape':                   'Infra Ops',
-  'finops':                 'Infra Ops',
-  'compute-storage':        'Infra Ops',
-  'dynatrace':              'Observability & EAI',
-  'splunk':                 'Observability & EAI',
-  'datapowr':               'Observability & EAI',
-  'apigee':                 'Observability & EAI',
-  'graphql':                'Observability & EAI',
-  'cloud-engineering':      'Platform Engineering',
-  'data-engineering':       'Platform Engineering',
+// Maps every leaf id → { slides, label }
+const LEAF_MAP = {
+  // ── All Towers (default, no selection) ──
+  default:                  { slides: DECKS.allTowers,  label: 'All Towers — Overview' },
+  // ── Enterprise Service Center ──
+  'incident-response':      { slides: DECKS.esc,        label: 'Enterprise Service Center' },
+  'toc':                    { slides: DECKS.esc,        label: 'Enterprise Service Center' },
+  'aoc':                    { slides: DECKS.esc,        label: 'Enterprise Service Center' },
+  // ── Infra Ops ──
+  'enterprise-itsm':        { slides: DECKS.infraOps,   label: 'Infra Ops' },
+  'finops':                 { slides: DECKS.infraOps,   label: 'Infra Ops' },
+  'iss':                    { slides: DECKS.infraOps,   label: 'Infra Ops' },
+  'cape':                   { slides: DECKS.infraOps,   label: 'Infra Ops' },
+  // ── Automation Engineering ──
+  'automation-engineering': { slides: DECKS.automation, label: 'Automation Engineering' },
+  // ── Security Engineering (Platform Engineering) ──
+  'security-engineering':   { slides: DECKS.cyber,      label: 'Security Engineering' },
+  // ── Everything else → All Towers fallback ──
+  'network-engineering':    { slides: DECKS.allTowers,  label: 'Network Engineering' },
+  'compute-storage':        { slides: DECKS.allTowers,  label: 'Platform Engineering' },
+  'cloud-engineering':      { slides: DECKS.allTowers,  label: 'Platform Engineering' },
+  'data-engineering':       { slides: DECKS.allTowers,  label: 'Platform Engineering' },
+  'dynatrace':              { slides: DECKS.allTowers,  label: 'Observability & EAI' },
+  'splunk':                 { slides: DECKS.allTowers,  label: 'Observability & EAI' },
+  'datapowr':               { slides: DECKS.allTowers,  label: 'Observability & EAI' },
+  'apigee':                 { slides: DECKS.allTowers,  label: 'Observability & EAI' },
+  'graphql':                { slides: DECKS.allTowers,  label: 'Observability & EAI' },
 }
 
-function getSlidesForLeaf(leafId) {
-  if (!leafId) return SLIDE_MAP.default
-  return SLIDE_MAP[leafId] || SLIDE_MAP.default
+function getEntry(leafId) {
+  return LEAF_MAP[leafId || 'default'] || LEAF_MAP.default
 }
 
 function NavBar({ idx, total, onPrev, onNext, onDot }) {
@@ -131,8 +81,7 @@ function NavBar({ idx, total, onPrev, onNext, onDot }) {
 }
 
 export default function SlideViewer({ activeLeaf }) {
-  const slides = getSlidesForLeaf(activeLeaf)
-  const label  = TOWER_LABELS[activeLeaf || 'default'] || 'All Towers — Overview'
+  const { slides, label } = getEntry(activeLeaf)
 
   const [idx,       setIdx]       = useState(0)
   const [fade,      setFade]      = useState(true)
