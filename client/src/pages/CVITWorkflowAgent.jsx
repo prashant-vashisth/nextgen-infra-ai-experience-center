@@ -318,6 +318,19 @@ export default function CVITWorkflowAgent() {
           if (data.incidentTicket) setArtifacts(p => ({ ...p, incident: data.incidentTicket }))
           if (data.githubPR)       setArtifacts(p => ({ ...p, pr: data.githubPR }))
           if (data.kbArticle)      setArtifacts(p => ({ ...p, kb: data.kbArticle }))
+          // Restore step timeline position on reconnect
+          if (data.stepIndex > 0) {
+            setCurrentStep(data.stepIndex)
+            activeStepIdRef.current = data.step
+            const doneSteps = {}
+            WORKFLOW_STEPS.forEach(s => { if (s.index < data.stepIndex) doneSteps[s.id] = 'done' })
+            setStepStates(p => ({ ...p, ...doneSteps, [data.step]: 'active' }))
+            setIsRunning(true)
+          }
+          // Restore approval panel if workflow is paused awaiting human approval (e.g. SSE reconnect)
+          if (data.step === 'awaiting_approval' && data.changeTicket && !data.humanApproval) {
+            setHumanPending({ action: 'approve', changeTicket: data.changeTicket, cve: data.enrichedCVE || {} })
+          }
           if (data.step === 'completed') {
             setIsCompleted(true)
             setIsRunning(false)
