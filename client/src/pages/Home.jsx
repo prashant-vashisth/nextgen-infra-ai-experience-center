@@ -156,15 +156,17 @@ const USE_CASES = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const HIDDEN_UC_IDS = new Set([25])
+
 function countForLeaf(leafId) {
-  return USE_CASES.filter(uc => uc.subcategories.includes(leafId)).length
+  return USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id) && uc.subcategories.includes(leafId)).length
 }
 
 function countForGroup(groupId, tower) {
   const group = tower.groups?.find(g => g.id === groupId)
   if (!group) return 0
   const leafIds = group.children.map(c => c.id)
-  return USE_CASES.filter(uc => leafIds.some(lid => uc.subcategories.includes(lid))).length
+  return USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id) && leafIds.some(lid => uc.subcategories.includes(lid))).length
 }
 
 // ─── AAA (Assist / Augment / Autonomous) data — sourced from USE_CASES_TABLE ──
@@ -344,15 +346,19 @@ const STAT_CHIPS = [
 // ─── Tower panels ─────────────────────────────────────────────────────────────
 
 // IT Operations & Infrastructure — grouped (two levels)
-function ITOpsTowerPanel({ tower, activeLeaf, onSelect }) {
+function ITOpsTowerPanel({ tower, activeLeaf, onSelect, onHeaderSelect }) {
   const TowerIcon = tower.icon
   const totalUCs = USE_CASES.filter(uc =>
+    !HIDDEN_UC_IDS.has(uc.id) &&
     tower.groups.flatMap(g => g.children).some(c => uc.subcategories.includes(c.id))
   ).length
 
   return (
     <div className="card-humana overflow-hidden flex flex-col">
-      <div className={`bg-gradient-to-r ${tower.color} px-5 py-4 flex items-center gap-3`}>
+      <div
+        className={`bg-gradient-to-r ${tower.color} px-5 py-4 flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity`}
+        onClick={onHeaderSelect}
+      >
         <div className="p-2 rounded-lg bg-white/15">
           <TowerIcon size={22} className="text-white" />
         </div>
@@ -402,15 +408,19 @@ function ITOpsTowerPanel({ tower, activeLeaf, onSelect }) {
 }
 
 // Platform Engineering — flat tiles
-function PlatformTowerPanel({ tower, activeLeaf, onSelect }) {
+function PlatformTowerPanel({ tower, activeLeaf, onSelect, onHeaderSelect }) {
   const TowerIcon = tower.icon
   const totalUCs = USE_CASES.filter(uc =>
+    !HIDDEN_UC_IDS.has(uc.id) &&
     tower.subcategories.some(sc => uc.subcategories.includes(sc.id))
   ).length
 
   return (
     <div className="card-humana overflow-hidden flex flex-col">
-      <div className={`bg-gradient-to-r ${tower.color} px-5 py-4 flex items-center gap-3`}>
+      <div
+        className={`bg-gradient-to-r ${tower.color} px-5 py-4 flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity`}
+        onClick={onHeaderSelect}
+      >
         <div className="p-2 rounded-lg bg-white/15">
           <TowerIcon size={22} className="text-white" />
         </div>
@@ -599,6 +609,7 @@ function UseCaseCard({ uc, index, onSelect }) {
 
 export default function Home() {
   const [activeLeaf, setActiveLeaf] = useState(null)
+  const [viewerLeaf, setViewerLeaf] = useState(null)
   const [selectedUC, setSelectedUC] = useState(null)
   const [showProgramDetails, setShowProgramDetails] = useState(false)
   const towersRef  = useRef(null)
@@ -609,11 +620,12 @@ export default function Home() {
     : null
 
   const filtered = activeLeaf
-    ? USE_CASES.filter(uc => uc.subcategories.includes(activeLeaf))
-    : USE_CASES
+    ? USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id) && uc.subcategories.includes(activeLeaf))
+    : USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id))
 
   const handleSelect = (id) => {
     setActiveLeaf(id)
+    setViewerLeaf(id)
     if (id) {
       setTimeout(() => {
         const el = towersRef.current
@@ -623,6 +635,10 @@ export default function Home() {
         }
       }, 80)
     }
+  }
+
+  const handleHeaderSelect = (id) => {
+    setViewerLeaf(id)
   }
 
   const [escTower, infraOpsTower, obsEaiTower, platformTower, networkTower, autoTower] = TOWERS
@@ -711,18 +727,18 @@ export default function Home() {
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start">
-          <ITOpsTowerPanel    tower={escTower}       activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={infraOpsTower}  activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={obsEaiTower}    activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={platformTower}  activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={networkTower}   activeLeaf={activeLeaf} onSelect={handleSelect} />
-          <PlatformTowerPanel tower={autoTower}      activeLeaf={activeLeaf} onSelect={handleSelect} />
+          <ITOpsTowerPanel    tower={escTower}       activeLeaf={activeLeaf} onSelect={handleSelect} onHeaderSelect={() => handleHeaderSelect('incident-response')} />
+          <PlatformTowerPanel tower={infraOpsTower}  activeLeaf={activeLeaf} onSelect={handleSelect} onHeaderSelect={() => handleHeaderSelect('enterprise-itsm')} />
+          <PlatformTowerPanel tower={obsEaiTower}    activeLeaf={activeLeaf} onSelect={handleSelect} onHeaderSelect={() => handleHeaderSelect('dynatrace')} />
+          <PlatformTowerPanel tower={platformTower}  activeLeaf={activeLeaf} onSelect={handleSelect} onHeaderSelect={() => handleHeaderSelect('security-engineering')} />
+          <PlatformTowerPanel tower={networkTower}   activeLeaf={activeLeaf} onSelect={handleSelect} onHeaderSelect={() => handleHeaderSelect('network-engineering')} />
+          <PlatformTowerPanel tower={autoTower}      activeLeaf={activeLeaf} onSelect={handleSelect} onHeaderSelect={() => handleHeaderSelect('automation-engineering')} />
         </div>
       </section>
 
       {/* ── Slide viewer — between tower panels and use case catalog ── */}
       <section className="px-6 pb-2 max-w-6xl mx-auto">
-        <SlideViewer activeLeaf={activeLeaf} />
+        <SlideViewer activeLeaf={viewerLeaf} />
       </section>
 
       {/* ── Use Case Catalog ── */}
@@ -758,84 +774,6 @@ export default function Home() {
 
       {/* ── Use Case Detail Drawer ── */}
       <UseCaseDrawer uc={selectedUC} onClose={() => setSelectedUC(null)} />
-
-      {/* ── Live Interactive Demos ── */}
-      <section className="bg-humana-navy mt-6 px-6 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 mb-6">
-            <Zap size={16} className="text-humana-green" />
-            <h2 className="text-base font-bold text-white">Live Interactive Demos</h2>
-            <span className="text-white/40 text-xs">— 11 live demos · real AI · real APIs · click to launch</span>
-          </div>
-
-          {/* IT Operations & Infrastructure */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">IT Operations & Infrastructure</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { path: '/demo/event-management-agent', title: 'Event Management & Self-Heal', desc: 'AIOps: 2,400 alerts/day → AI deduplication → 3 incidents → auto-remediation',  color: 'from-amber-700 to-amber-900',   badge: 'UC #22', domain: 'IT Operations', icon: Activity  },
-                { path: '/demo/batch-health-analyzer',  title: 'Batch Health Analyzer',        desc: 'Unified NOC for Control-M, Mainframe, Toad, Informatica & Nabu pipelines',     color: 'from-emerald-700 to-emerald-900',badge: 'UC #25', domain: 'IT Infra Ops',  icon: Server    },
-                { path: '/demo/rca-cmdb-agent',         title: 'RCA Agent + CMDB Enrichment',  desc: 'Problem ticket RCA with multi-source correlation and CMDB health dashboard',    color: 'from-purple-700 to-purple-900', badge: 'UC #41', domain: 'IT Infra Ops',  icon: Activity  },
-                { path: '/demo/finops-cost-agent',      title: 'FinOps Cost Anomaly Agent',    desc: 'Azure cost intelligence: detect spend anomalies, forecast overages, right-size', color: 'from-orange-700 to-orange-900', badge: 'UC #35', domain: 'FinOps',        icon: Zap       },
-              ].map(demo => (
-                <Link key={demo.path} to={demo.path} className="group">
-                  <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
-                      <span className="text-xs text-white/50">{demo.domain}</span>
-                    </div>
-                    <demo.icon size={22} className="text-white/70 mb-2" />
-                    <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
-                    <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
-                      Launch <ChevronRight size={12} />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Platform Engineering */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">Platform Engineering</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { path: '/demo/cvit-workflow',             title: 'CVIT Multi-Agent Orchestrator',  desc: '10-step agentic workflow: LangGraph + Claude Opus 4 tool calling + real Azure/ServiceNow/GitHub', color: 'from-red-700 to-red-900', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
-                { path: '/demo/cloud-onboarding-agent',   title: 'Cloud Onboarding Validation',    desc: 'Reads real Terraform from GitHub, runs 12 compliance checks, AI remediates failures', color: 'from-humana-teal to-[#006677]', badge: 'UC #6',  domain: 'Cloud Eng',        icon: Activity  },
-                { path: '/demo/apg-agent',                title: 'APG Workflow Assist Agent',      desc: 'Terraform pipeline governance — A–E grade scoring, RCA, error classification',    color: 'from-[#1a3a6b] to-[#0d2147]',    badge: 'UC #9',  domain: 'Automation Eng',   icon: GitBranch },
-                { path: '/demo/dependency-risk-agent',    title: 'Dependency Risk Management',     desc: 'Scans real GitHub repos for CVEs, AI risk analysis, creates fix PR automatically', color: 'from-indigo-700 to-indigo-900',   badge: 'UC #13', domain: 'Automation Eng',   icon: Shield    },
-                { path: '/demo/aks-helm-propagation',     title: 'Multi-Cluster Update Agent',     desc: 'AI-driven component updates (nginx, cert-manager, Prometheus) across all AKS clusters', color: 'from-[#0a5c44] to-[#063d2e]', badge: 'UC #47', domain: 'Cloud Eng',        icon: GitBranch },
-                { path: '/demo/aks-vulnerability-agent', title: 'AKS Vulnerability Scanner',      desc: 'Live CVE scan on AKS cluster — Prisma Cloud integration, HIPAA compliance checks, auto-remediation', color: 'from-rose-800 to-rose-950', badge: 'UC #36', domain: 'Security Eng', icon: Shield },
-                { path: '/demo/cape-rightsizing-agent',  title: 'CAPE Rightsizing Agent',         desc: 'AI rightsizes live Azure SQL, Storage & VMs — real cost savings with Groq-powered recommendations', color: 'from-cyan-700 to-cyan-900', badge: 'UC #34', domain: 'FinOps / Cloud', icon: Server },
-              ].map(demo => (
-                <Link key={demo.path} to={demo.path} className="group">
-                  <div className={`bg-gradient-to-br ${demo.color} rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 h-full flex flex-col border border-white/10`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{demo.badge}</span>
-                      <span className="text-xs text-white/50">{demo.domain}</span>
-                    </div>
-                    <demo.icon size={22} className="text-white/70 mb-2" />
-                    <h3 className="font-bold text-sm leading-snug mb-1">{demo.title}</h3>
-                    <p className="text-white/55 text-xs leading-relaxed flex-1">{demo.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-humana-green text-xs font-bold group-hover:gap-2 transition-all">
-                      Launch <ChevronRight size={12} />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
     </div>
   )
