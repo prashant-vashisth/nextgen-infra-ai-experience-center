@@ -118,10 +118,14 @@ export default function AKSHelmPropagationAgent() {
   const [expandedCluster, setExpandedCluster] = useState(null)
   const [mergeStatus, setMergeStatus] = useState({})
 
-  const chatEndRef = useRef(null)
+  const chatScrollRef = useRef(null)
   const inputRef = useRef(null)
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => {
+    if (messages.length > 1 && chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+    }
+  }, [messages])
 
   // Fetch real cluster state
   useEffect(() => {
@@ -789,7 +793,7 @@ export default function AKSHelmPropagationAgent() {
               {isStreaming && <Loader2 size={12} className="animate-spin text-humana-teal ml-auto" />}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
               {messages.map((m, i) => (
                 <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {m.role === 'assistant' && (
@@ -811,7 +815,6 @@ export default function AKSHelmPropagationAgent() {
                   )}
                 </div>
               ))}
-              <div ref={chatEndRef} />
             </div>
 
             {/* Quick asks */}

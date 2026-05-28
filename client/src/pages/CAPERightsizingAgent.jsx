@@ -248,7 +248,7 @@ function ChatPanel({ open, onToggle }) {
   ])
   const [input, setInput] = useState('')
   const { content: streamContent, isStreaming, stream } = useGroqStream()
-  const bottomRef = useRef(null)
+  const msgsContainerRef = useRef(null)
   const prevStreamingRef = useRef(false)
 
   useEffect(() => {
@@ -259,7 +259,9 @@ function ChatPanel({ open, onToggle }) {
   }, [isStreaming, streamContent])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > 1 && msgsContainerRef.current) {
+      msgsContainerRef.current.scrollTop = msgsContainerRef.current.scrollHeight
+    }
   }, [messages, streamContent])
 
   const send = async () => {
@@ -290,7 +292,7 @@ function ChatPanel({ open, onToggle }) {
       {open && (
         <>
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+          <div ref={msgsContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] text-xs rounded-lg px-3 py-2 leading-relaxed ${
@@ -319,7 +321,6 @@ function ChatPanel({ open, onToggle }) {
                 </div>
               </div>
             )}
-            <div ref={bottomRef} />
           </div>
 
           {/* Quick prompts */}
