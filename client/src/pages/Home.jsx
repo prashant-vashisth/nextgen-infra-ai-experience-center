@@ -632,7 +632,7 @@ export default function Home() {
       const isObsNetwork = OBS_NETWORK_IDS.has(id)
       const el = isObsNetwork ? catalogRef.current : slideViewerRef.current
       if (el) {
-        const top = el.getBoundingClientRect().top + window.scrollY - 16
+        const top = el.getBoundingClientRect().top + window.scrollY - 96
         window.scrollTo({ top, behavior: 'smooth' })
       }
     }, 80)
