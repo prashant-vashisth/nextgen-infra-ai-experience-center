@@ -40,8 +40,6 @@ const LEAF_MAP = {
   'graphql':                { slides: DECKS.allTowers,  label: 'Observability & EAI' },
 }
 
-const OBS_NETWORK_LEAVES = new Set(['dynatrace', 'splunk', 'datapowr', 'apigee', 'graphql', 'network-engineering'])
-
 function getEntry(leafId) {
   return LEAF_MAP[leafId || 'default'] || LEAF_MAP.default
 }
@@ -91,16 +89,11 @@ export default function SlideViewer({ activeLeaf }) {
   const [expanded,  setExpanded]  = useState(false)
   const [minimized, setMinimized] = useState(false)
 
-  // Reset to slide 1 when deck changes; auto-minimize for obs/network towers
+  // Reset to slide 1 when deck changes
   useEffect(() => {
-    if (OBS_NETWORK_LEAVES.has(activeLeaf)) {
-      setMinimized(true)
-    } else {
-      setMinimized(false)
-      setFade(false)
-      const t = setTimeout(() => { setIdx(0); setFade(true) }, 180)
-      return () => clearTimeout(t)
-    }
+    setFade(false)
+    const t = setTimeout(() => { setIdx(0); setFade(true) }, 180)
+    return () => clearTimeout(t)
   }, [activeLeaf])
 
   // Close modal on Escape

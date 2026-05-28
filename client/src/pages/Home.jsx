@@ -157,6 +157,7 @@ const USE_CASES = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const HIDDEN_UC_IDS = new Set([25])
+const OBS_NETWORK_IDS = new Set(['dynatrace', 'splunk', 'datapowr', 'apigee', 'graphql', 'network-engineering'])
 
 function countForLeaf(leafId) {
   return USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id) && uc.subcategories.includes(leafId)).length
@@ -612,8 +613,9 @@ export default function Home() {
   const [viewerLeaf, setViewerLeaf] = useState(null)
   const [selectedUC, setSelectedUC] = useState(null)
   const [showProgramDetails, setShowProgramDetails] = useState(false)
-  const towersRef  = useRef(null)
-  const catalogRef = useRef(null)
+  const towersRef      = useRef(null)
+  const catalogRef     = useRef(null)
+  const slideViewerRef = useRef(null)
 
   const activeLabel = activeLeaf
     ? ALL_LEAVES.find(l => l.id === activeLeaf)?.label
@@ -623,22 +625,28 @@ export default function Home() {
     ? USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id) && uc.subcategories.includes(activeLeaf))
     : USE_CASES.filter(uc => !HIDDEN_UC_IDS.has(uc.id))
 
+  const isViewerHidden = viewerLeaf != null && OBS_NETWORK_IDS.has(viewerLeaf)
+
+  const scrollAfterSelect = (id) => {
+    setTimeout(() => {
+      const isObsNetwork = OBS_NETWORK_IDS.has(id)
+      const el = isObsNetwork ? catalogRef.current : slideViewerRef.current
+      if (el) {
+        const top = el.getBoundingClientRect().top + window.scrollY - 16
+        window.scrollTo({ top, behavior: 'smooth' })
+      }
+    }, 80)
+  }
+
   const handleSelect = (id) => {
     setActiveLeaf(id)
     setViewerLeaf(id)
-    if (id) {
-      setTimeout(() => {
-        const el = towersRef.current
-        if (el) {
-          const top = el.getBoundingClientRect().top + window.scrollY - 16
-          window.scrollTo({ top, behavior: 'smooth' })
-        }
-      }, 80)
-    }
+    if (id) scrollAfterSelect(id)
   }
 
   const handleHeaderSelect = (id) => {
     setViewerLeaf(id)
+    if (id) scrollAfterSelect(id)
   }
 
   const [escTower, infraOpsTower, obsEaiTower, platformTower, networkTower, autoTower] = TOWERS
@@ -737,9 +745,11 @@ export default function Home() {
       </section>
 
       {/* ── Slide viewer — between tower panels and use case catalog ── */}
-      <section className="px-6 pb-2 max-w-6xl mx-auto">
-        <SlideViewer activeLeaf={viewerLeaf} />
-      </section>
+      {!isViewerHidden && (
+        <section ref={slideViewerRef} className="px-6 pb-2 max-w-6xl mx-auto">
+          <SlideViewer activeLeaf={viewerLeaf} />
+        </section>
+      )}
 
       {/* ── Use Case Catalog ── */}
       <section ref={catalogRef} className="px-6 pt-6 pb-4 max-w-6xl mx-auto">
